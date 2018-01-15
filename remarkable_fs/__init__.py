@@ -1,10 +1,9 @@
-from paramiko.client import SSHClient, WarningPolicy
-from paramiko.sftp_client import SFTPClient
 import fnmatch
 import json
 import time
 import os.path
 from sftp import SFTPDirectory, SFTPFile
+import connection
 
 def strip_ext(path):
     base, ext = os.path.splitext(path)
@@ -107,10 +106,6 @@ def load_node(dir, id):
     return node
 
 def main():
-    with SSHClient() as client:
-        client.load_system_host_keys()
-        client.set_missing_host_key_policy(WarningPolicy)
-        client.connect('localhost')
-        with client.open_sftp() as sftp:
-            dir = SFTPDirectory(sftp, "/home/nick/remarkable-fs/data")
-            slurp(dir)
+    with connection.connect() as conn:
+        dir = SFTPDirectory(conn.sftp, "/home/nick/remarkable-fs/data")
+        slurp(dir)
