@@ -41,7 +41,7 @@ setup(
     keywords='remarkable fuse',
 
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    install_requires=['fusepy', 'paramiko', 'toposort'],
+    install_requires=['fusepy', 'paramiko', 'lazy'],
 
     entry_points={
         'console_scripts': [
