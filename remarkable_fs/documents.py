@@ -9,14 +9,28 @@ def load_documents(dir):
         id, ext = os.path.splitext(path)
         nodes[id] = load_node(dir, id)
     
-    directory = []
+    root = Root()
+    nodes[root.id] = root
+
     for node in nodes.values():
-        if node.parent is None:
-            directory.append(node)
-        else:
+        if node.parent is not None:
             nodes[node.parent].add_child(node)
 
-    return directory
+    return root
+
+def load_node(dir, id):
+    classes = [Document, Collection]
+    classes_dict = {cls.node_type(): cls for cls in classes}
+
+    data = json.loads(dir[id + ".metadata"].contents)
+    try:
+        cls = classes_dict[data["type"]]
+    except KeyError:
+        cls = Node
+
+    node = cls.__new__(cls)
+    node.__load__(dir, id, data)
+    return node
 
 class Node(object):
     def __init__(self, id, name, parent):
@@ -27,8 +41,6 @@ class Node(object):
     def __load__(self, dir, id, json):
         name = json["visibleName"]
         parent = json["parent"]
-        if parent == "":
-            parent = None
         self.__init__(id, name, parent)
 
     def save(self, dir):
@@ -38,15 +50,12 @@ class Node(object):
         del dir[self.id + ".metadata"]
 
     def dump(self):
-        parent = self.parent
-        if parent is None:
-            parent = ""
         return {
             "deleted": False,
             "lastModified": str(int(time.time()*1000)),
             "metadatamodified": True,
             "modified": True,
-            "parent": parent,
+            "parent": self.parent,
             "pinned": False,
             "synced": False,
             "type": self.node_type(),
@@ -63,10 +72,10 @@ class Node(object):
 class Collection(Node):
     def __init__(self, id, name, parent):
         super(Collection, self).__init__(id, name, parent)
-        self.children = []
+        self.children = {}
 
     def add_child(self, child):
-        self.children.append(child)
+        self.children[child.name] = child
 
     def __repr__(self):
         return "%s(%s, %s, %s)" % \
@@ -75,25 +84,28 @@ class Collection(Node):
              self.name,
              self.children)
 
+    def __getitem__(self, key):
+        return self.children[key]
+
+    def __iter__(self):
+        return iter(self.children)
+
+    def items(self):
+        return self.children.items()
+
     @staticmethod
     def node_type():
         return "CollectionType"
+
+class Root(Collection):
+    def __init__(self):
+        super(Root, self).__init__("", "ROOT", None)
+
+    @staticmethod
+    def node_type():
+        raise TypeError, "root directory cannot be persisted"
 
 class Document(Node):
     @staticmethod
     def node_type():
         return "DocumentType"
-
-def load_node(dir, id):
-    classes = [Document, Collection]
-    classes_dict = {cls.node_type(): cls for cls in classes}
-
-    data = json.loads(dir[id + ".metadata"].contents)
-    try:
-        cls = classes_dict[data["type"]]
-    except KeyError:
-        cls = Node
-
-    node = cls.__new__(cls)
-    node.__load__(dir, id, data)
-    return node
