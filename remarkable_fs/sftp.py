@@ -3,11 +3,15 @@ import stat
 from lazy import lazy
 from StringIO import StringIO
 
-class SFTPDirectory(object):
+class SFTPNode(object):
     def __init__(self, sftp, path="."):
         self.sftp = sftp
         self.path = path
 
+    def stat(self):
+        return self.sftp.stat(self.path)
+
+class SFTPDirectory(SFTPNode):
     @lazy
     def contents(self):
         def make_entry(attr):
@@ -27,16 +31,16 @@ class SFTPDirectory(object):
     def __iter__(self):
         return iter(self.contents)
 
+    def __contains__(self, item):
+        return item in self.contents
+
     def items(self):
         return self.contents.items()
 
-class SFTPFile(object):
-    def __init__(self, sftp, path):
-        self.sftp = sftp
-        self.path = path
+class SFTPFile(SFTPNode):
+    def open(self):
+        return self.sftp.open(self.path)
 
     @lazy
     def contents(self):
-        stringio = StringIO()
-        self.sftp.getfo(self.path, stringio)
-        return stringio.getvalue()
+        return self.open().read()

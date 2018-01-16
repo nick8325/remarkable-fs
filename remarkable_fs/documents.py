@@ -42,6 +42,16 @@ class Node(object):
         name = json["visibleName"]
         parent = json["parent"]
         self.__init__(id, name, parent)
+        try:
+            st = dir[self.main_file(dir, id, json)].stat()
+            self.size = st.st_size
+            self.atime = st.st_atime
+            self.mtime = st.st_mtime
+        except:
+            pass
+
+    def main_file(self, dir, id, json):
+        return id + ".metadata"
 
     def save(self, dir):
         dir[self.id + ".metadata"] = json.dumps(self.tojson())
@@ -89,6 +99,9 @@ class Collection(Node):
 
     def __iter__(self):
         return iter(self.children)
+
+    def __contains__(self, item):
+        return item in self.children
 
     def items(self):
         return self.children.items()
