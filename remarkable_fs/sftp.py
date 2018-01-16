@@ -1,7 +1,6 @@
 import os.path
 import stat
 from lazy import lazy
-from StringIO import StringIO
 
 class SFTPNode(object):
     def __init__(self, sftp, path="."):

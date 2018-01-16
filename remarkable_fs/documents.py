@@ -22,7 +22,7 @@ def load_node(dir, id):
     classes = [Document, Collection]
     classes_dict = {cls.node_type(): cls for cls in classes}
 
-    data = json.loads(dir[id + ".metadata"].contents)
+    data = json.loads(dir[id + ".metadata"].contents.decode("utf-8"))
     try:
         cls = classes_dict[data["type"]]
     except KeyError:
@@ -116,7 +116,7 @@ class Root(Collection):
 
     @staticmethod
     def node_type():
-        raise TypeError, "root directory cannot be persisted"
+        raise TypeError("root directory cannot be persisted")
 
 class Document(Node):
     @staticmethod

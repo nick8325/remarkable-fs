@@ -1,7 +1,7 @@
-from sftp import SFTPDirectory, SFTPFile
-from connection import connect
-from documents import load_documents
-from fs import mount
+from remarkable_fs.sftp import SFTPDirectory, SFTPFile
+from remarkable_fs.connection import connect
+from remarkable_fs.documents import load_documents
+from remarkable_fs.fs import mount
 
 def main():
     with connect() as conn:
