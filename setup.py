@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-# Taken from: https://github.com/pypa/sampleproject
-
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 # To use a consistent encoding
@@ -26,9 +24,9 @@ setup(
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: End Users/Desktop',
-        # Paramiko is LGPL so...
+        # Paramiko is LGPL v2+
         'License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)'
-        #'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX',
