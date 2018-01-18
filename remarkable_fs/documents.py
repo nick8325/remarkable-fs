@@ -2,6 +2,7 @@ import fnmatch
 import json
 import time
 import os.path
+import itertools
 
 def load_documents(dir):
     nodes = {}
@@ -85,7 +86,18 @@ class Collection(Node):
         self.children = {}
 
     def add_child(self, child):
-        self.children[child.name] = child
+        # Remove invalid chars
+        name = child.name.replace("/", "-")
+
+        # Disambiguate duplicate names e.g. Foo/bar, Foo-bar
+        if name in self.children:
+            for n in itertools.count(2):
+                x = "%s (%d)" % (name, n)
+                if x not in self.children:
+                    name = x
+                    break
+
+        self.children[name] = child
 
     def __repr__(self):
         return "%s(%s, %s, %s)" % \
