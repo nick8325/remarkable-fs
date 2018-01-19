@@ -5,5 +5,5 @@ from remarkable_fs.fs import mount
 
 def main():
     with connect() as conn:
-        dir = SFTPDirectory(conn.sftp, "/home/nick/prog/remarkable-fs/data")
+        dir = SFTPDirectory(conn.sftp, "/home/root/.local/share/remarkable/xochitl")
         mount("/home/nick/prog/remarkable-fs/mount", load_documents(dir))

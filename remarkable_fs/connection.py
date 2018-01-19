@@ -2,6 +2,8 @@ from contextlib import contextmanager
 from collections import namedtuple
 from paramiko.client import SSHClient, WarningPolicy
 from paramiko.sftp_client import SFTPClient
+from paramiko.ssh_exception import AuthenticationException
+from getpass import getpass
 
 Connection = namedtuple('Connection', 'ssh sftp')
 
@@ -10,12 +12,22 @@ def connect():
     with SSHClient() as ssh:
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(WarningPolicy)
-        ssh.connect('localhost')
+        try:
+            ssh.connect('10.11.99.1', username="root", look_for_keys=False)
+        except AuthenticationException:
+            password = getpass()
+            ssh.connect('10.11.99.1', username="root", password=password, look_for_keys=False)
 
         # Stop xochitl but restart it again if the connection drops
         on_start = "systemctl stop xochitl"
         on_finish = "systemctl start xochitl"
-        ssh.exec_command("""bash -c "trap '%s' EXIT; %s; cat" """ % (on_start, on_finish))
+        # We know USB was disconnected when the power supply drops.
+        # We also kill the SSH connection so that the information
+        # in FUSE is not out of date.
+        stdin, _, _ = ssh.exec_command("""bash -c "trap '%s' EXIT; %s; while udevadm info -p /devices/soc0/soc/2100000.aips-bus/2184000.usb/power_supply/imx_usb_charger | grep -q POWER_SUPPLY_ONLINE=1; do sleep 1; done; %s; kill $PPID" """ % (on_finish, on_start, on_finish))
 
         with ssh.open_sftp() as sftp:
             yield Connection(ssh, sftp)
+
+        # Closing stdin triggers on_finish to run, so only do it now
+        stdin.close()
