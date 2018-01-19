@@ -38,7 +38,6 @@ def connect():
 
         finally:
             # Closing stdin triggers on_finish to run, so only do it now
-            print "here"
             try:
                 ssh.exec_command(on_finish)
             except:
