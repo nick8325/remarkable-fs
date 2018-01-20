@@ -2,12 +2,12 @@ from remarkable_fs.connection import connect
 from remarkable_fs.documents import DocumentRoot
 from remarkable_fs.fs import mount
 import sys
-import __builtin__
 
 try:
+    import __builtin__
     raw_input = __builtin__.raw_input
-except AttributeError:
-    raw_input = __builtin__.input
+except:
+    raw_input = input
 
 def main(argv = sys.argv):
     if len(argv) == 2:

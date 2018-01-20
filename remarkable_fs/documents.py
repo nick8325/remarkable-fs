@@ -249,17 +249,17 @@ def strip_extension(filename):
 
 def new_document(root, name, parent, contents):
     convert = None
-    if contents.startswith("%PDF"):
+    if contents.startswith(b"%PDF"):
         filetype = "pdf"
-    elif contents.startswith("AT&TFORM"):
+    elif contents.startswith(b"AT&TFORM"):
         filetype = "pdf"
         suffix = ".djvu"
         convert = "ddjvu --format=pdf"
-    elif contents.startswith("%!PS-Adobe"):
+    elif contents.startswith(b"%!PS-Adobe"):
         filetype = "pdf"
         suffix = ".ps"
         convert = "ps2pdf"
-    elif contents.startswith("PK"):
+    elif contents.startswith(b"PK"):
         filetype = "epub"
     else:
         raise RuntimeError("Only PDF, epub, djvu and ps format files supported")
