@@ -103,6 +103,12 @@ class Remarkable(Operations):
             pass
         return attrs
 
+    def chmod(self, path, mode):
+        pass
+
+    def chown(self, path, uid, gid):
+        pass
+
     def readdir(self, path, fh):
         node = self.navigate(path)
         if isinstance(node, Collection):
