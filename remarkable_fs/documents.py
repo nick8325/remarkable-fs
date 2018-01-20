@@ -191,10 +191,16 @@ class DocumentRoot(Collection):
     def write_metadata(self, id, metadata):
         self.write_json(id + ".metadata", metadata)
 
+    def read_content(self, id):
+        return self.read_json(id + ".content")
+
+    def write_content(self, id, content):
+        self.write_json(id + ".content", content)
+
 class Document(Node):
     def __init__(self, root, id, metadata):
         super(Document, self).__init__(root, id, metadata)
-        self.content = self.root.read_json(id + ".content")
+        self.content = self.root.read_content(id)
         if self.visible:
             self.get_times_from(self.raw_file_name)
 
@@ -233,6 +239,7 @@ def new_collection(root, name, parent):
     id = new_id()
     metadata = initial_metadata(Collection.node_type(), name, parent)
     root.write_metadata(id, metadata)
+    root.write_content(id, {})
     return root.load_node(id)
 
 def new_document(root, name, parent, contents):
@@ -248,7 +255,7 @@ def new_document(root, name, parent, contents):
     root.write_metadata(id, metadata)
 
     content = {"fileType": filetype}
-    root.write_json(id + ".content", content)
+    root.write_content(id, content)
     root.sftp.open(id + "." + filetype, "w").write(contents)
     return root.load_node(id)
 
@@ -263,7 +270,7 @@ def initial_metadata(node_type, name, parent):
         "modified": True,
         "parent": parent.id,
         "pinned": False,
-        "synced": True,
+        "synced": False,
         "type": node_type,
         "version": 1,
         "visibleName": name

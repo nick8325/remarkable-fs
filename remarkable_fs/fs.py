@@ -3,7 +3,7 @@ import sys
 from errno import *
 import stat
 from fuse import FUSE, FuseOSError, Operations
-from remarkable_fs.documents import Collection, Document, new_document
+from remarkable_fs.documents import Collection, Document, new_collection, new_document
 from io import BytesIO
 
 class Remarkable(Operations):
@@ -142,6 +142,20 @@ class Remarkable(Operations):
         self.check_not_writing(parent, name)
 
         return self.new_file_handle(FileWriter(self, parent, name))
+
+    def rmdir(self, path):
+        node = self.navigate(path)
+        if not isinstance(node, Collection):
+            raise FuseOSError(ENOTDIR)
+        if len(node.items()) > 0:
+            raise FuseOSError(ENOTEMPTY)
+        node.delete()
+
+    def mkdir(self, path, mode):
+        parent, name = self.parent(path)
+        if name in parent:
+            raise FuseOSError(EEXIST)
+        new_collection(self.documents, name, parent)
 
     def read(self, path, size, offset, fh):
         node = self.navigate(path)
