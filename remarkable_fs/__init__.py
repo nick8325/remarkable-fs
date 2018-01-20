@@ -10,8 +10,8 @@ except AttributeError:
     raw_input = __builtin__.input
 
 def main(argv = sys.argv):
-    if len(argv) == 1:
-        mount_point = argv[0]
+    if len(argv) == 2:
+        mount_point = argv[1]
     else:
         mount_point = raw_input("Mount point: ")
 
