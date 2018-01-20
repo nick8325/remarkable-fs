@@ -278,7 +278,9 @@ def new_document(root, name, parent, contents):
 
     content = {"fileType": filetype}
     root.write_content(id, content)
-    root.sftp.open(id + "." + filetype, "w").write(contents)
+    data = root.sftp.open(id + "." + filetype, "w")
+    data.set_pipelined()
+    data.write(contents)
     node = root.load_node_without_linking(id)
     node.file_name = name
     node.link()
