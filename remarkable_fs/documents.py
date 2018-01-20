@@ -229,7 +229,7 @@ class Document(Node):
     
     @property
     def visible(self):
-        return self.file_type != ""
+        return super(Document, self).visible and self.file_type != ""
 
     @staticmethod
     def node_type():
