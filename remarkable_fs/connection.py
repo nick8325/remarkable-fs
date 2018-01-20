@@ -37,6 +37,7 @@ def connect():
             signal(SIGTERM, raise_exception)
             signal(SIGHUP, raise_exception)
             with ssh.open_sftp() as sftp:
+                sftp.chdir("/home/root/.local/share/remarkable/xochitl")
                 yield Connection(ssh, sftp)
 
         finally:

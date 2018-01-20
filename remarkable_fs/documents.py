@@ -3,7 +3,9 @@ import json
 import time
 import os.path
 import itertools
+import traceback
 from uuid import uuid4
+from lazy import lazy
 
 class Node(object):
     def __init__(self, root, id, metadata):
@@ -23,7 +25,7 @@ class Node(object):
             self.parent.add_child(self)
 
     def get_times_from(self, file):
-        st = self.root.dir[file].stat()
+        st = self.root.sftp.stat(file)
         self.size = st.st_size
         self.atime = st.st_atime
         self.mtime = st.st_mtime
@@ -41,6 +43,10 @@ class Node(object):
     name = _rw("visibleName")
     deleted = _rw("deleted")
     data_modified = _rw("modified")
+
+    @property
+    def file_name(self):
+        return self.name
 
     @property
     def visible(self):
@@ -79,7 +85,7 @@ class Collection(Node):
 
     def add_child(self, child):
         # Remove invalid chars
-        name = child.name.replace("/", "-")
+        name = child.file_name.replace("/", "-")
 
         # Disambiguate duplicate names e.g. Foo/bar, Foo-bar
         if name in self.children:
@@ -124,13 +130,13 @@ class Collection(Node):
         return "CollectionType"
 
 class DocumentRoot(Collection):
-    def __init__(self, dir):
+    def __init__(self, sftp):
         super(DocumentRoot, self).__init__(self, None, None)
         self.id = ""
-        self.dir = dir
+        self.sftp = sftp
         self.nodes = {"": self}
 
-        for path in fnmatch.filter(dir, '*.metadata'):
+        for path in fnmatch.filter(sftp.listdir(), '*.metadata'):
             id, _ = os.path.splitext(path)
             self.load_node_without_linking(id)
 
@@ -145,23 +151,26 @@ class DocumentRoot(Collection):
 
     def load_node(self, id):
         node = self.load_node_without_linking(id)
-        self.link_nodes()
+        if node is not None: node.link()
         return node
 
     def load_node_without_linking(self, id):
         classes = [Document, Collection]
         classes_dict = {cls.node_type(): cls for cls in classes}
 
-        metadata = json.loads(self.dir[id + ".metadata"].read().decode("utf-8"))
+        metadata = json.loads(self.sftp.open(id + ".metadata").read().decode("utf-8"))
         try:
             cls = classes_dict[metadata["type"]]
         except KeyError:
             cls = Node
           
-        node = cls(self, id, metadata)
-        if node.visible:
-            self.nodes[id] = node
-            return node
+        try:
+            node = cls(self, id, metadata)
+            if node.visible:
+                self.nodes[id] = node
+                return node
+        except IOError:
+            traceback.print_exc()
 
     def link_nodes(self):
         for node in self.nodes.values():
@@ -171,10 +180,10 @@ class DocumentRoot(Collection):
         return self.nodes.get(id)
 
     def read_json(self, file):
-        return json.loads(self.dir[file].read().decode("utf-8"))
+        return json.loads(self.sftp.open(file).read().decode("utf-8"))
         
-    def write_json(self, file, json):
-        self.dir[file].write(json.dumps(json))
+    def write_json(self, file, value):
+        self.sftp.open(file, "w").write(json.dumps(value))
 
     def read_metadata(self, id):
         return self.read_json(id + ".metadata")
@@ -187,21 +196,30 @@ class Document(Node):
         super(Document, self).__init__(root, id, metadata)
         self.content = self.root.read_json(id + ".content")
         if self.visible:
-            self.get_times_from(self.file_name)
+            self.get_times_from(self.raw_file_name)
 
     @property
     def file_type(self):
         return self.content["fileType"]
 
     @property
-    def file_name(self):
+    def raw_file_name(self):
         return self.id + "." + self.file_type
+
+    @property
+    def file_name(self):
+        return self.name + "." + self.file_type
+
+    @lazy
+    def file(self):
+        return self.root.sftp.open(self.raw_file_name)
     
     def read(self):
-        return self.root.dir[self.file_name].read()
+        return self.file.read()
     
     def read_chunk(self, offset, length):
-        return self.root.dir[self.file_name].read_chunk(offset, length)
+        [str] = self.file.readv([(offset, length)])
+        return str
     
     @property
     def visible(self):
@@ -217,6 +235,23 @@ def new_collection(root, name, parent):
     root.write_metadata(id, metadata)
     return root.load_node(id)
 
+def new_document(root, name, parent, contents):
+    if contents.startswith("%PDF"):
+        filetype = "pdf"
+    elif contents.startswith("PK"):
+        filetype = "epub"
+    else:
+        raise RuntimeError("Only PDF and epub format files supported")
+
+    id = new_id()
+    metadata = initial_metadata(Document.node_type(), name, parent)
+    root.write_metadata(id, metadata)
+
+    content = {"fileType": filetype}
+    root.write_json(id + ".content", content)
+    root.sftp.open(id + "." + filetype, "w").write(contents)
+    return root.load_node(id)
+
 def new_id():
     return str(uuid4())
 
@@ -226,7 +261,7 @@ def initial_metadata(node_type, name, parent):
         "lastModified": str(int(time.time()*1000)),
         "metadatamodified": True,
         "modified": True,
-        "parent": parent,
+        "parent": parent.id,
         "pinned": False,
         "synced": True,
         "type": node_type,
