@@ -16,6 +16,9 @@ def connect():
         try:
             ssh.connect('10.11.99.1', username="root", look_for_keys=False)
         except AuthenticationException:
+            print("Please enter the root password of your reMarkable.")
+            print("To find out the password, follow the instructions at:")
+            print("http://remarkablewiki.com/index.php?title=Methods_of_access#Connecting_via_ssh")
             password = getpass()
             ssh.connect('10.11.99.1', username="root", password=password, look_for_keys=False)
 
