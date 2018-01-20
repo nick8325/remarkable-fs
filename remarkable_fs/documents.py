@@ -13,6 +13,8 @@ class Node(object):
         self.root = root
         self.id = id
         self.metadata = metadata
+        if self.metadata is not None:
+            self.file_name = self.name
 
     def __repr__(self):
         return "%s(%s, %s)" % \
@@ -46,10 +48,6 @@ class Node(object):
     data_modified = _rw("modified")
 
     @property
-    def file_name(self):
-        return self.name
-
-    @property
     def visible(self):
         return not self.deleted
 
@@ -66,7 +64,8 @@ class Node(object):
             return
 
         self.parent.remove_child(self)
-        self.name = name
+        self.name = strip_extension(name)
+        self.file_name = name
         self.metadata["parent"] = parent.id
         self.parent = parent
         self.parent.add_child(self)
@@ -204,6 +203,7 @@ class Document(Node):
         self.content = self.root.read_content(id)
         if self.visible:
             self.get_times_from(self.raw_file_name)
+        self.file_name = self.name + "." + self.file_type
 
     @property
     def file_type(self):
@@ -212,10 +212,6 @@ class Document(Node):
     @property
     def raw_file_name(self):
         return self.id + "." + self.file_type
-
-    @property
-    def file_name(self):
-        return self.name + "." + self.file_type
 
     @lazy
     def file(self):
@@ -245,12 +241,10 @@ def new_collection(root, name, parent):
 
 known_extensions = ["pdf", "djvu", "ps", "epub"]
 
-def name_from_filename(filename):
-    # Compute a good name, stripping off directory components
-    # and file extensions
+def strip_extension(filename):
     name, ext = os.path.splitext(filename)
     if ext in ["." + ext for ext in known_extensions]:
-        return name_from_filename(name)
+        return name
     return filename
 
 def new_document(root, name, parent, contents):
@@ -279,13 +273,15 @@ def new_document(root, name, parent, contents):
         contents = outfile.read()
 
     id = new_id()
-    metadata = initial_metadata(Document.node_type(), name, parent)
+    metadata = initial_metadata(Document.node_type(), strip_extension(name), parent)
     root.write_metadata(id, metadata)
 
     content = {"fileType": filetype}
     root.write_content(id, content)
     root.sftp.open(id + "." + filetype, "w").write(contents)
-    return root.load_node(id)
+    node = root.load_node_without_linking(id)
+    node.file_name = name
+    node.link()
 
 def new_id():
     return str(uuid4())

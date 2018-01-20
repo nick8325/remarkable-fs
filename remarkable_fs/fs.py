@@ -3,7 +3,7 @@ import sys
 from errno import *
 import stat
 from fuse import FUSE, FuseOSError, Operations
-from remarkable_fs.documents import Collection, Document, new_collection, new_document, known_extensions, name_from_filename
+from remarkable_fs.documents import Collection, Document, new_collection, new_document, known_extensions
 from io import BytesIO
 
 class Remarkable(Operations):
