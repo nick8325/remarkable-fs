@@ -4,6 +4,7 @@ import time
 import os.path
 import itertools
 import traceback
+from tempfile import NamedTemporaryFile
 from uuid import uuid4
 from lazy import lazy
 
@@ -242,13 +243,40 @@ def new_collection(root, name, parent):
     root.write_content(id, {})
     return root.load_node(id)
 
+known_extensions = ["pdf", "djvu", "ps", "epub"]
+
+def name_from_filename(filename):
+    # Compute a good name, stripping off directory components
+    # and file extensions
+    name, ext = os.path.splitext(filename)
+    if ext in ["." + ext for ext in known_extensions]:
+        return name_from_filename(name)
+    return filename
+
 def new_document(root, name, parent, contents):
+    convert = None
     if contents.startswith("%PDF"):
         filetype = "pdf"
+    elif contents.startswith("AT&TFORM"):
+        filetype = "pdf"
+        suffix = ".djvu"
+        convert = "ddjvu --format=pdf"
+    elif contents.startswith("%!PS-Adobe"):
+        filetype = "pdf"
+        suffix = ".ps"
+        convert = "ps2pdf"
     elif contents.startswith("PK"):
         filetype = "epub"
     else:
-        raise RuntimeError("Only PDF and epub format files supported")
+        raise RuntimeError("Only PDF, epub, djvu and ps format files supported")
+
+    if convert is not None:
+        infile = NamedTemporaryFile(suffix = suffix)
+        outfile = NamedTemporaryFile(suffix = ".pdf")
+        infile.write(contents)
+        infile.flush()
+        os.system("%s %s %s" % (convert, infile.name, outfile.name))
+        contents = outfile.read()
 
     id = new_id()
     metadata = initial_metadata(Document.node_type(), name, parent)

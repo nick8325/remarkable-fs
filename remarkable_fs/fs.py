@@ -3,7 +3,7 @@ import sys
 from errno import *
 import stat
 from fuse import FUSE, FuseOSError, Operations
-from remarkable_fs.documents import Collection, Document, new_collection, new_document
+from remarkable_fs.documents import Collection, Document, new_collection, new_document, known_extensions, name_from_filename
 from io import BytesIO
 
 class Remarkable(Operations):
@@ -190,14 +190,7 @@ class FileWriter(object):
         self.fs.writing_files.add((parent, name))
 
     def close(self):
-        # Compute a good name, stripping off directory components
-        # and file extensions
-        name, ext = os.path.splitext(self.name)
-        if ext != ".pdf" and ext != ".epub":
-            name = self.name
-        name = os.path.basename(name)
-
-        new_document(self.fs.documents, name, self.parent, self.buf.getvalue())
+        new_document(self.fs.documents, self.name, self.parent, self.buf.getvalue())
         self.fs.writing_files.remove((self.parent, self.name))
         
 def mount(mountpoint, documents):
