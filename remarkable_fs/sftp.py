@@ -33,13 +33,31 @@ class SFTPDirectory(SFTPNode):
     def __contains__(self, item):
         return item in self.contents
 
+    def get(self, key):
+        return self.contents.get(key)
+
     def items(self):
         return self.contents.items()
 
 class SFTPFile(SFTPNode):
-    def open(self):
-        return self.sftp.open(self.path)
+    _file = None
 
-    @lazy
-    def contents(self):
-        return self.open().read()
+    @property
+    def file(self):
+        if self._file is None:
+            self._file = self.sftp.open(self.path)
+        return self._file
+    
+    def open(self):
+        return self.file
+
+    def read(self):
+        return self.file.read()
+
+    def read_chunk(self, offset, length):
+        [str] = self.file.readv([(offset, length)])
+        return str
+
+    def write(self, str):
+        self._file = None
+        self.sftp.open(self.path, 'w').write(str)

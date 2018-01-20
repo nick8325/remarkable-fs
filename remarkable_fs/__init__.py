@@ -1,6 +1,6 @@
 from remarkable_fs.sftp import SFTPDirectory, SFTPFile
 from remarkable_fs.connection import connect
-from remarkable_fs.documents import load_documents
+from remarkable_fs.documents import DocumentRoot
 from remarkable_fs.fs import mount
 import sys
 import __builtin__
@@ -18,4 +18,4 @@ def main(argv = sys.argv):
 
     with connect() as conn:
         dir = SFTPDirectory(conn.sftp, "/home/root/.local/share/remarkable/xochitl")
-        mount(mount_point, load_documents(dir))
+        mount(mount_point, DocumentRoot(dir))
