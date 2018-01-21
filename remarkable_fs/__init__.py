@@ -15,5 +15,8 @@ def main(argv = sys.argv):
     else:
         mount_point = raw_input("Mount point: ")
 
+    print("Connecting to reMarkable...")
     with connect() as conn:
-        mount(mount_point, DocumentRoot(conn.sftp))
+        root = DocumentRoot(conn.sftp)
+        print("Now serving documents at", mount_point)
+        mount(mount_point, root)

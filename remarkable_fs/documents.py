@@ -7,6 +7,7 @@ import traceback
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
 from lazy import lazy
+from progress.bar import Bar
 
 class Node(object):
     def __init__(self, root, id, metadata):
@@ -136,11 +137,15 @@ class DocumentRoot(Collection):
         self.sftp = sftp
         self.nodes = {"": self}
 
-        for path in fnmatch.filter(sftp.listdir(), '*.metadata'):
+        paths = fnmatch.filter(sftp.listdir(), '*.metadata')
+        bar = Bar("Reading document information", max=len(paths))
+        for path in paths:
             id, _ = os.path.splitext(path)
             self.load_node_without_linking(id)
+            bar.next()
 
         self.link_nodes()
+        bar.finish()
 
     @property
     def name(self):
