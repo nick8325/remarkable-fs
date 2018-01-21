@@ -53,4 +53,4 @@ Note that your reMarkable will be unresponsive for the time you have
 ``remarkable-fs`` running. It should start responding as soon as you close
 ``remarkable-fs`` or unplug the USB cable. If for some reason it doesn't, you
 can force your reMarkable to restart by holding down the power button for five
-seconds, letting go, and then pressing the power button again.
+seconds, letting go, and then pressing the power button for another second.
