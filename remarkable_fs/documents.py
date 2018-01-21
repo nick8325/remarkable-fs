@@ -9,6 +9,11 @@ from uuid import uuid4
 from lazy import lazy
 from progress.bar import Bar
 
+try:
+    from json import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError
+
 class Node(object):
     def __init__(self, root, id, metadata):
         self.root = root
@@ -174,7 +179,7 @@ class DocumentRoot(Collection):
             if node.visible:
                 self.nodes[id] = node
                 return node
-        except IOError:
+        except (IOError, JSONDecodeError):
             traceback.print_exc()
 
     def link_nodes(self):
