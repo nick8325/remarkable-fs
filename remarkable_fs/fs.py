@@ -14,7 +14,7 @@ class Remarkable(Operations):
         self.file_handles = {}
         self.free_file_handles = []
         self.next_file_handle = 1 # open returns 0
-        self.writing_files = set()
+        self.writing_files = {}
 
     def free_file_handle(self, fd):
         if fd != 0:
@@ -176,7 +176,12 @@ class Remarkable(Operations):
         return len(data)
 
     def truncate(self, path, length):
-        raise FuseOSError(EACCES)
+        parent, name = self.parent(path)
+        writer = self.writing_files.get((parent, name))
+        if writer is None:
+            raise FuseOSError(EACCES)
+
+        writer.buf.truncate(length)
         
     def release(self, path, fh):
         self.free_file_handle(fh)
@@ -187,11 +192,11 @@ class FileWriter(object):
         self.parent = parent
         self.name = name
         self.buf = BytesIO()
-        self.fs.writing_files.add((parent, name))
+        self.fs.writing_files[(parent, name)] = self
 
     def close(self):
         new_document(self.fs.documents, self.name, self.parent, self.buf.getvalue())
-        self.fs.writing_files.remove((self.parent, self.name))
+        del self.fs.writing_files[(self.parent, self.name)]
         
 def mount(mountpoint, documents):
     FUSE(Remarkable(documents), mountpoint, nothreads=True, foreground=True, big_writes=True, max_write=1048576)
