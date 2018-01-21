@@ -158,7 +158,7 @@ class DocumentRoot(Collection):
         classes = [Document, Collection]
         classes_dict = {cls.node_type(): cls for cls in classes}
 
-        metadata = json.loads(self.sftp.open(id + ".metadata").read().decode("utf-8"))
+        metadata = json.loads(self.read_file(id + ".metadata").decode("utf-8"))
         try:
             cls = classes_dict[metadata["type"]]
         except KeyError:
@@ -179,11 +179,19 @@ class DocumentRoot(Collection):
     def find_node(self, id):
         return self.nodes.get(id)
 
+    def read_file(self, file):
+        return self.sftp.open(file).read()
+
+    def write_file(self, file, contents):
+        f = self.sftp.open(file, 'w')
+        f.set_pipelined()
+        f.write(memoryview(contents))
+
     def read_json(self, file):
-        return json.loads(self.sftp.open(file).read().decode("utf-8"))
+        return json.loads(self.read_file(file).decode("utf-8"))
         
     def write_json(self, file, value):
-        self.sftp.open(file, "w").write(json.dumps(value))
+        self.write_file(file, json.dumps(value).encode("utf-8"))
 
     def read_metadata(self, id):
         return self.read_json(id + ".metadata")
@@ -278,9 +286,7 @@ def new_document(root, name, parent, contents):
 
     content = {"fileType": filetype}
     root.write_content(id, content)
-    data = root.sftp.open(id + "." + filetype, "w")
-    data.set_pipelined()
-    data.write(contents)
+    root.write_file(id + "." + filetype, contents)
     node = root.load_node_without_linking(id)
     node.file_name = name
     node.link()
