@@ -52,6 +52,7 @@ class Node(object):
     name = _rw("visibleName")
     deleted = _rw("deleted")
     data_modified = _rw("modified")
+    pinned = _rw("pinned")
 
     @property
     def visible(self):

@@ -186,6 +186,34 @@ class Remarkable(Operations):
     def release(self, path, fh):
         self.free_file_handle(fh)
 
+    def getxattr(self, path, name, position=0):
+        if name != "user.bookmarked":
+            raise FuseOSError(ENOTSUP)
+
+        node = self.navigate(path)
+        if node.pinned:
+            return "yes"
+        else:
+            return "no"
+
+    def setxattr(self, path, name, value, options, position=0):
+        if name != "user.bookmarked":
+            raise FuseOSError(ENOTSUP)
+
+        if value == "yes":
+            pinned = True
+        elif value == "no":
+            pinned = False
+        else:
+            raise FuseOSError(ENOTSUP)
+
+        node = self.navigate(path)
+        node.pinned = pinned
+        node.save()
+
+    def listxattr(self, path):
+        return ["user.bookmarked"]
+
 class FileWriter(object):
     def __init__(self, fs, parent, name):
         self.fs = fs
