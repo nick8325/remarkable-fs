@@ -33,22 +33,23 @@ Then, to install ``remarkable-fs``, just run:
 Running
 -------
 
-First make sure you know the root password of your reMarkable. You
-can find this by opening the settings menu of the reMarkable, choosing
-"About", scrolling to the very bottom, and finding the paragraph
-beginning: "To do so, this device acts as a USB ethernet device..."
-
 Make an empty directory on your computer. This directory is where your
-documents will appear. Then run
+documents will appear. Then run ``remarkable-fs``. You will be
+prompted for the path to this directory; type it in. (On macOS, you
+can instead drag the directory to the terminal window at this point.)
 
-  remarkable-fs DIRECTORY
+You will then be prompted for the root password of your reMarkable.
+You can find this by opening the settings menu of the reMarkable,
+choosing "About", scrolling to the very bottom, and finding the
+paragraph beginning: "To do so, this device acts as a USB ethernet
+device..." If you don't want to have to type in the root password
+every time you run ``remarkable-fs``, follow the instructions on
+passwordless login from the ``reMarkable wiki``_.
 
-where ``DIRECTORY`` should be replaced by the path to the directory
-you created. (On macOS, you can drag the directory into the Terminal
-window instead of typing its path.)
+.. _reMarkable wiki: http://remarkablewiki.com/index.php?title=Methods_of_access#Setting_up_ssh-keys
 
-You will be prompted for the reMarkable password, and afterwards your files will
-be available in the directory you chose. Go wild!
+If all goes well, your files will be available in the directory you
+chose. Go wild!
 
 When you are finished, you can stop ``remarkable-fs`` by pressing ctrl-C.
 
@@ -57,7 +58,3 @@ Note that your reMarkable will be unresponsive for the time you have
 ``remarkable-fs`` or unplug the USB cable. If for some reason it doesn't, you
 can force your reMarkable to restart by holding down the power button for five
 seconds, letting go, and then pressing the power button for another second.
-
-If you don't want to have to type in the root password every time you
-run ``remarkable-fs``, follow the instructions on passwordless login
-from the ``reMarkable wiki``_.
