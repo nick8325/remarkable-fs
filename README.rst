@@ -48,10 +48,9 @@ you created. (On macOS, you can drag the directory into the Terminal
 window instead of typing its path.)
 
 You will be prompted for the reMarkable password, and afterwards your files will
-be available in the mount point. Go wild!
+be available in the directory you chose. Go wild!
 
-When you are finished, you can either unmount the directory or press ctrl-C to
-stop ``remarkable-fs``.
+When you are finished, you can stop ``remarkable-fs`` by pressing ctrl-C.
 
 Note that your reMarkable will be unresponsive for the time you have
 ``remarkable-fs`` running. It should start responding as soon as you close
