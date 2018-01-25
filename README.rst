@@ -44,7 +44,7 @@ choosing "About", scrolling to the very bottom, and finding the
 paragraph beginning: "To do so, this device acts as a USB ethernet
 device..." If you don't want to have to type in the root password
 every time you run ``remarkable-fs``, follow the instructions on
-passwordless login from the ``reMarkable wiki``_.
+passwordless login from the `reMarkable wiki`_.
 
 .. _reMarkable wiki: http://remarkablewiki.com/index.php?title=Methods_of_access#Setting_up_ssh-keys
 
