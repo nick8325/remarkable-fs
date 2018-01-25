@@ -42,14 +42,15 @@ You will then be prompted for the root password of your reMarkable.
 You can find this by opening the settings menu of the reMarkable,
 choosing "About", scrolling to the very bottom, and finding the
 paragraph beginning: "To do so, this device acts as a USB ethernet
-device..." If you don't want to have to type in the root password
+device..." (If you don't want to have to type in the root password
 every time you run ``remarkable-fs``, follow the instructions on
-passwordless login from the `reMarkable wiki`_.
+passwordless login from the `reMarkable wiki`_.)
 
 .. _reMarkable wiki: http://remarkablewiki.com/index.php?title=Methods_of_access#Setting_up_ssh-keys
 
-If all goes well, your files will be available in the directory you
-chose. Go wild!
+If all goes well, you will find all your documents in the directory
+you chose. You can copy PDF or EPUB files there, and they will appear
+on the reMarkable; you can also move files around. Go wild!
 
 When you are finished, you can stop ``remarkable-fs`` by pressing ctrl-C.
 
