@@ -16,32 +16,36 @@ unwilling to lose all your documents. Use at your own risk!*
 Installation
 ------------
 
-``remarkable-fs`` works on Linux. It has not been tested on macOS, but in
-principle it ought to work with some coaxing. It currently requires some
-terminal knowhow to run it.
+``remarkable-fs`` works on both Linux and macOS. To install it, you
+will need:
 
-To install it, make sure you have Python and FUSE. Then run:
+- FUSE. If on macOS, get this from the `Fuse for macOS`_ project. If
+  on Linux, your package manager should have it.
+- ``pip``, the Python package installer. You can install this by running
+  ``sudo easy_install pip``.
 
-  python setup.py install --user
+.. _Fuse for macOS: https://osxfuse.github.io/
 
-This will take a while. Eventually, it will install the ``remarkable-fs``
-program in ``~/.local/bin``.
+Then, to install ``remarkable-fs``, just run:
+
+  sudo pip install remarkable-fs
 
 Running
 -------
 
-Make sure you have:
+First make sure you know the root password of your reMarkable. You
+can find this by opening the settings menu of the reMarkable, choosing
+"About", scrolling to the very bottom, and finding the paragraph
+beginning: "To do so, this device acts as a USB ethernet device..."
 
-- The root password of your reMarkable (can be found by opening the reMarkable
-  menu, choosing "About", scrolling to the very bottom, and finding the
-  paragraph beginning: "To do so, this device acts as a USB ethernet device..."
-- An empty directory (the "mount point") where you want your files to appear.
+Make an empty directory on your computer. This directory is where your
+documents will appear. Then run
 
-Then run:
+  remarkable-fs DIRECTORY
 
-  ~/.local/bin/remarkable-fs MOUNT_POINT
-
-where ``MOUNT_POINT`` should be replaced with the directory you chose above.
+where ``DIRECTORY`` should be replaced by the path to the directory
+you created. (On macOS, you can drag the directory into the Terminal
+window instead of typing its path.)
 
 You will be prompted for the reMarkable password, and afterwards your files will
 be available in the mount point. Go wild!
@@ -54,3 +58,7 @@ Note that your reMarkable will be unresponsive for the time you have
 ``remarkable-fs`` or unplug the USB cable. If for some reason it doesn't, you
 can force your reMarkable to restart by holding down the power button for five
 seconds, letting go, and then pressing the power button for another second.
+
+If you don't want to have to type in the root password every time you
+run ``remarkable-fs``, follow the instructions on passwordless login
+from the ``reMarkable wiki``_.
