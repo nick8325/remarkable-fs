@@ -13,7 +13,7 @@ def main(argv = sys.argv):
     if len(argv) == 2:
         mount_point = argv[1]
     else:
-        mount_point = raw_input("Mount point: ")
+        mount_point = raw_input("Directory: ")
 
     print("Connecting to reMarkable...")
     with connect() as conn:
