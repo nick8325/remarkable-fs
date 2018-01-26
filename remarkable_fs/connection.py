@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from collections import namedtuple
-from paramiko.client import SSHClient, WarningPolicy
+from paramiko.client import SSHClient, AutoAddPolicy
 from paramiko.sftp_client import SFTPClient
 from paramiko.ssh_exception import SSHException, AuthenticationException
 from getpass import getpass
@@ -12,7 +12,7 @@ Connection = namedtuple('Connection', 'ssh sftp')
 def connect():
     with SSHClient() as ssh:
         ssh.load_system_host_keys()
-        ssh.set_missing_host_key_policy(WarningPolicy)
+        ssh.set_missing_host_key_policy(AutoAddPolicy)
         try:
             ssh.connect('10.11.99.1', username="root", look_for_keys=False)
         except (SSHException, AuthenticationException):
