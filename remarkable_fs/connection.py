@@ -14,7 +14,7 @@ def connect():
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(AutoAddPolicy)
         try:
-            ssh.connect('10.11.99.1', username="root", look_for_keys=False)
+            ssh.connect('10.11.99.1', username="root")
         except (SSHException, AuthenticationException):
             print("Please enter the root password of your reMarkable.")
             print("To find out the password, follow the instructions at:")

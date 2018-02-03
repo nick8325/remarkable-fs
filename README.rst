@@ -16,8 +16,9 @@ unwilling to lose all your documents. Use at your own risk!*
 Installation
 ------------
 
-``remarkable-fs`` works on both Linux and macOS. To install it, you
-will need:
+``remarkable-fs`` works on both Linux and macOS. Note that on macOS,
+copying files using the Finder does not yet work, you will have to use
+the terminal. To install it, you will need:
 
 - FUSE. If on macOS, get this from the `Fuse for macOS`_ project. If
   on Linux, your package manager should have it.
@@ -51,6 +52,9 @@ passwordless login from the `reMarkable wiki`_.)
 If all goes well, you will find all your documents in the directory
 you chose. You can copy PDF or EPUB files there, and they will appear
 on the reMarkable; you can also move files around. Go wild!
+
+(On macOS, the directory will appear in the Finder under the name
+"OSXFUSE Volume 0 (Python)".)
 
 When you are finished, you can stop ``remarkable-fs`` by pressing ctrl-C.
 
