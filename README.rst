@@ -63,3 +63,10 @@ Note that your reMarkable will be unresponsive for the time you have
 ``remarkable-fs`` or unplug the USB cable. If for some reason it doesn't, you
 can force your reMarkable to restart by holding down the power button for five
 seconds, letting go, and then pressing the power button for another second.
+
+Copyright
+---------
+
+The software is licensed under the MIT licence, apart from the file
+remarkable_fs/rM2svg.py. That file is is licensed under the GNU LGPL
+version 3, and is taken from https://github.com/phil777/maxio.

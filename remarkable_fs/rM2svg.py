@@ -1,5 +1,5 @@
 # This code copied from https://github.com/phil777/maxio
-# and licensed under the LGPL
+# and licensed under the LGPL, version 3.
 
 import sys
 import struct
