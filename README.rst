@@ -6,8 +6,8 @@ folder on your computer. All your documents and folders are visible; you can
 copy documents to and from the reMarkable, create folders, and move and delete
 folders and files.
 
-Currently, only PDF and EPUB files are supported. In particular, there is no
-support for handwritten notes yet!
+It supports PDF files, EPUB files, and handwritten notes, but does not
+yet support annotated PDFs (they are exported without annotations).
 
 *This software is in an early stage of development. I take no responsibility if
 it deletes your files or bricks your reMarkable! Do not use it if you are

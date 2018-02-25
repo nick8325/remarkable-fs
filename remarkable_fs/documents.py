@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile
 from uuid import uuid4
 from lazy import lazy
 from progress.bar import Bar
+import rM2svg
 
 try:
     from json import JSONDecodeError
@@ -225,27 +226,50 @@ class Document(Node):
         self.file_name = self.name + "." + self.file_type
 
     @property
+    def raw_file_type(self):
+        return self.content["fileType"] or "lines"
+
+    @property
     def file_type(self):
-        return self.content["fileType"]
+        return self.content["fileType"] or "pdf"
 
     @property
     def raw_file_name(self):
-        return self.id + "." + self.file_type
+        return self.id + "." + self.raw_file_type
 
     @lazy
     def file(self):
-        return self.root.sftp.open(self.raw_file_name)
+        result = self.root.sftp.open(self.raw_file_name)
+        if self.raw_file_type == "lines":
+            result = self.read_lines_file(result)
+        return result
+
+    def read_lines_file(self, file):
+        outfile = NamedTemporaryFile(suffix = ".pdf", delete = False)
+        outname = outfile.name
+        outfile.close()
+        rM2svg.lines2cairo(file, outname, None)
+        result = open(outname)
+        try:
+            os.unlink(outname)
+        except OSError:
+            pass
+        return result
     
     def read(self):
         return self.file.read()
     
     def read_chunk(self, offset, length):
-        [str] = self.file.readv([(offset, length)])
-        return str
+        if hasattr(self.file, "readv"):
+            [str] = self.file.readv([(offset, length)])
+            return str
+        else:
+            self.file.seek(offset)
+            return self.file.read(length)
     
     @property
     def visible(self):
-        return super(Document, self).visible and self.file_type != ""
+        return super(Document, self).visible
 
     @staticmethod
     def node_type():
