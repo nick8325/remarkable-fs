@@ -58,7 +58,7 @@ class Remarkable(Operations):
         try:
             parent, name = self.parent(path)
             if (parent, name) in self.writing_files:
-                return {"st_uid": self.uid, "st_gid": self.gid, "st_mode": stat.S_IFREG + stat.S_IWUSR}
+                return {"st_uid": self.uid, "st_gid": self.gid, "st_mode": stat.S_IFREG + stat.S_IWUSR, "st_size": self.writing_files[(parent, name)].size()}
         except FuseOSError:
             pass
         
