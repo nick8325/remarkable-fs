@@ -54,24 +54,6 @@ class Remarkable(Operations):
         if (parent, name) in self.writing_files:
             raise FuseOSError(EACCES)
         
-    def access(self, path, mode):
-        # write access
-        if mode == os.W_OK:
-            # parent directory should exist
-            self.parent(path)
-            # N.B. we can't open files for writing.
-            # But rm issues its "are you sure you want to remove a
-            # write-protected file?" warning if we return EACCES here.
-            return
-
-        # unknown access mode, or read+write access
-        if mode != os.F_OK and (mode & ~os.R_OK & ~os.X_OK) != 0:
-            raise FuseOSError(EACCES)
-
-        node = self.navigate(path)
-        if (mode & os.X_OK) and not isinstance(node, Collection):
-            raise FuseOSError(EACCES)
-
     def getattr(self, path, fh=None):
         try:
             parent, name = self.parent(path)
@@ -227,4 +209,4 @@ class FileWriter(object):
         del self.fs.writing_files[(self.parent, self.name)]
         
 def mount(mountpoint, documents):
-    FUSE(Remarkable(documents), mountpoint, nothreads=True, foreground=True, big_writes=True, max_write=1048576)
+    FUSE(Remarkable(documents), mountpoint, nothreads=True, foreground=True, big_writes=True, max_write=1048576, debug=True)
