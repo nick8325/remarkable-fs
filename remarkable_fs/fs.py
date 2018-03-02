@@ -196,6 +196,11 @@ class Remarkable(Operations):
     def listxattr(self, path):
         return ["user.bookmarked"]
 
+    def statfs(self, path):
+        bsize=512
+        total=int(8192*1024*1024/bsize)
+        return {"f_bsize": bsize, "f_blocks": total, "f_bavail": total, "f_bfree": total}
+
 class FileWriter(object):
     def __init__(self, fs, parent, name):
         self.fs = fs
