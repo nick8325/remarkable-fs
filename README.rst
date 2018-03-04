@@ -20,6 +20,11 @@ Installation
 copying files using the Finder does not yet work, you will have to use
 the terminal. To install it, you will need:
 
+- Cairo. You probably have this if on Linux. On macOS, it is a bit
+  more involved. First, you have to install Homebrew by following the
+  instructions at http://brew.sh. Then, in a terminal, type
+  ``brew install cairo``.
+
 - FUSE. If on macOS, get this from the `Fuse for macOS`_ project. If
   on Linux, your package manager should have it.
 - ``pip``, the Python package installer. You can install this by running
@@ -27,7 +32,8 @@ the terminal. To install it, you will need:
 
 .. _Fuse for macOS: https://osxfuse.github.io/
 
-Then, to install ``remarkable-fs``, just run:
+Then, to install ``remarkable-fs``, run the following command in a
+terminal:
 
   sudo pip install remarkable-fs
 
