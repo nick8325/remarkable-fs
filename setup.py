@@ -38,7 +38,7 @@ setup(
     keywords='remarkable fuse',
 
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    install_requires=['fusepy', 'paramiko', 'lazy', 'progress', 'cairocffi'],
+    install_requires=['fusepy', 'paramiko', 'lazy', 'progress', 'fpdf'],
 
     entry_points={
         'console_scripts': [

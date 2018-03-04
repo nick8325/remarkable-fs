@@ -5,8 +5,7 @@ import sys
 import struct
 import os.path
 import argparse
-#import poppler
-import cairocffi as cairo
+from fpdf import FPDF
 
 
 __prog_name__ = "rM2svg"
@@ -66,6 +65,32 @@ def abort(msg):
     print(msg)
     sys.exit(1)
 
+class FPDFPlus(FPDF):
+    """Adds alpha support to FPDF.
+
+    Ported from http://www.fpdf.org/en/script/script74.php."""
+
+    def __init__(self, *args, **kwargs):
+        super(FPDFPlus, self).__init__(*args, **kwargs)
+        self.ext_gs_states = {}
+        self.next_state = 0
+
+        if self.pdf_version < '1.4':
+            self.pdf_version = '1.4'
+        
+    def set_alpha(self, alpha, blend_mode="Normal"):
+        state = "<</ca %.3f /CA %.3f /BM /%s>>" % (alpha, alpha, blend_mode)
+        n = self.ext_gs_states.get(state)
+        if n is None:
+            n = self.next_state
+            self.next_state += 1
+            self.ext_gs_states[state] = n
+        self._out("/GS%d gs" % n)
+
+    def _putresources(self):
+        for (x, i) in self.ext_gs_states.iteritems():
+            self._out("/ExtGState <</GS%d %s>>" % (i, x))
+        super(FPDFPlus, self)._putresources()
 
 def lines2cairo(input_file, output_name, pdf_name):
     # Read the file in memory. Consider optimising by reading chunks.
@@ -97,32 +122,21 @@ def lines2cairo(input_file, output_name, pdf_name):
         yfactor = pdfy/y_width
         xfactor = yfactor = max(xfactor, yfactor)
     else:
-        xfactor = yfactor = 1
-        pdfx = x_width
-        pdfy = y_width
+        pdfy = 600.0
+        pdfx = pdfy*x_width/y_width
+        yfactor = pdfy/y_width
+        xfactor = pdfx/x_width
 
-
-    surface = cairo.PDFSurface(output_name, pdfx, pdfy)
-
-
+    pdf = FPDFPlus(unit = 'pt', format=(pdfx, pdfy))
 
     # Iterate through pages (There is at least one)
-
-
     for page in range(npages):
-
+        pdf.add_page()
+        
         fmt = '<BBH' # TODO might be 'I'
         nlayers, b_unk, h_unk = struct.unpack_from(fmt, data, offset); offset += struct.calcsize(fmt)
         if b_unk != 0 or h_unk != 0: # Might indicate which layers are visible.
             print('Unexpected value on page {} after nlayers'.format(page + 1))
-
-
-
-        context = cairo.Context(surface)
-
-
-#            pdfpage.render_for_printing(context)
-
 
         # Iterate through layers on the page (There is at least one)
         for layer in range(nlayers):
@@ -168,21 +182,23 @@ def lines2cairo(input_file, output_name, pdf_name):
                     segments.append(struct.unpack_from(fmt, data, offset))
                     offset += fmtsz
 
-                context.new_path()
+                last_x = None
+                last_y = None
                 for xpos, ypos, pressure, tilt, i_unk2 in segments:
                     if pen == 0:
                         width = (5. * tilt) * (6. * width - 10) * (1 + 2. * pressure * pressure * pressure)
                     elif pen == 1:
                         width = (10. * tilt -2) * (8. * width - 14)
                         opacity = (pressure - .2) * (pressure - .2)
-                    context.set_source_rgba(*stroke_colour[colour], alpha=opacity)
-                    context.set_line_width(width*xfactor)
-                    context.line_to(xpos*xfactor, ypos*yfactor)
-                context.stroke()
+                    pdf.set_draw_color(*stroke_colour[colour])
+                    pdf.set_alpha(opacity)
+                    pdf.set_line_width(width*xfactor)
+                    if last_x is not None:
+                        pdf.line(last_x*xfactor, last_y*yfactor, xpos*xfactor, ypos*yfactor)
+                    last_x = xpos
+                    last_y = ypos
 
-        context.show_page()
-
-    surface.finish()
+    pdf.output(output_name, "F")
 
 if __name__ == "__main__":
     main()
