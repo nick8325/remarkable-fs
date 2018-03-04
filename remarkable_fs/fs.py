@@ -6,7 +6,7 @@ from errno import *
 from posix import O_WRONLY, O_RDWR
 import stat
 from fuse import FUSE, FuseOSError, Operations
-from remarkable_fs.documents import Collection, Document
+from remarkable_fs.documents import Collection, Document, NewDocument
 from io import BytesIO
 import traceback
 
