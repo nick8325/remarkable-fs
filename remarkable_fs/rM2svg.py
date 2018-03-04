@@ -89,7 +89,7 @@ class FPDFPlus(FPDF):
         self._out("/GS%d gs" % n)
 
     def _putresources(self):
-        for (x, i) in self.ext_gs_states.iteritems():
+        for (x, i) in self.ext_gs_states.items():
             self._newobj()
             self.ext_gs_objs[x] = self.n
             self._out("<</Type /ExtGState %s>> endobj" % x)
@@ -98,7 +98,7 @@ class FPDFPlus(FPDF):
     def _putresourcedict(self):
         super(FPDFPlus, self)._putresourcedict()
         self._out("/ExtGState <<")
-        for (x, i) in self.ext_gs_states.iteritems():
+        for (x, i) in self.ext_gs_states.items():
             self._out("/GS%d %d 0 R" % (i, self.ext_gs_objs[x]))
         self._out(">>")
 
@@ -127,7 +127,7 @@ def lines2cairo(input_file, output_name, templates):
     if pdfdoc:
         pdfpage = pdfdoc.get_page(0)
         pdfx,pdfy = pdfpage.get_size()
-        print "page %.2f %.2f" % (pdfx,pdfy)
+        print("page %.2f %.2f" % (pdfx,pdfy))
         xfactor = pdfx/x_width
         yfactor = pdfy/y_width
         xfactor = yfactor = max(xfactor, yfactor)

@@ -21,7 +21,7 @@ from uuid import uuid4
 from lazy import lazy
 from progress.bar import Bar
 from io import BytesIO
-import rM2svg
+import remarkable_fs.rM2svg
 
 try:
     from json import JSONDecodeError
@@ -302,11 +302,11 @@ class DocumentRoot(Collection):
 
     def read_file(self, file):
         """Read a file from SFTP."""
-        return self.sftp.open(file).read()
+        return self.sftp.open(file, "rb").read()
 
     def write_file(self, file, data):
         """Write a file to SFTP."""
-        f = self.sftp.open(file, 'w')
+        f = self.sftp.open(file, "wb")
         f.set_pipelined()
         f.write(memoryview(data))
 
@@ -366,11 +366,11 @@ class Document(Node):
 
         If the file is a .lines file, this is auto-converted to PDF."""
         ext = self.file_type("lines")
-        file = self.root.sftp.open(self.id + "." + ext)
+        file = self.root.sftp.open(self.id + "." + ext, "rb")
 
         if ext == "lines":
             templates = []
-            for template in self.root.read_file(self.id + ".pagedata").splitlines():
+            for template in self.root.read_file(self.id + ".pagedata").decode("utf-8").splitlines():
                 if template == "Blank":
                     templates.append(None)
                 else:
@@ -494,8 +494,8 @@ def convert_lines_file(file, templates):
     outfile = NamedTemporaryFile(suffix = ".pdf", delete = False)
     outname = outfile.name
     outfile.close()
-    rM2svg.lines2cairo(file, outname, templates)
-    result = open(outname)
+    remarkable_fs.rM2svg.lines2cairo(file, outname, templates)
+    result = open(outname, "rb")
     try:
         os.unlink(outname)
     except OSError:

@@ -263,7 +263,7 @@ class Remarkable(Operations):
 
     def getxattr(self, path, name, position=0):
         if name != "user.bookmarked":
-            return ""
+            return b""
 
         node = self.node(path)
         if node.pinned:
