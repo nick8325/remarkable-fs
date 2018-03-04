@@ -73,24 +73,34 @@ class FPDFPlus(FPDF):
     def __init__(self, *args, **kwargs):
         super(FPDFPlus, self).__init__(*args, **kwargs)
         self.ext_gs_states = {}
-        self.next_state = 0
+        self.ext_gs_objs = {}
+        self.next = 0
 
         if self.pdf_version < '1.4':
             self.pdf_version = '1.4'
         
     def set_alpha(self, alpha, blend_mode="Normal"):
-        state = "<</ca %.3f /CA %.3f /BM /%s>>" % (alpha, alpha, blend_mode)
+        state = "/ca %.3f /CA %.3f /BM /%s" % (alpha, alpha, blend_mode)
         n = self.ext_gs_states.get(state)
         if n is None:
-            n = self.next_state
-            self.next_state += 1
+            n = self.next + 1
+            self.next += 1
             self.ext_gs_states[state] = n
         self._out("/GS%d gs" % n)
 
     def _putresources(self):
         for (x, i) in self.ext_gs_states.iteritems():
-            self._out("/ExtGState <</GS%d %s>>" % (i, x))
+            self._newobj()
+            self.ext_gs_objs[x] = self.n
+            self._out("<</Type /ExtGState %s>> endobj" % x)
         super(FPDFPlus, self)._putresources()
+
+    def _putresourcedict(self):
+        super(FPDFPlus, self)._putresourcedict()
+        self._out("/ExtGState <<")
+        for (x, i) in self.ext_gs_states.iteritems():
+            self._out("/GS%d %d 0 R" % (i, self.ext_gs_objs[x]))
+        self._out(">>")
 
 def lines2cairo(input_file, output_name, pdf_name):
     # Read the file in memory. Consider optimising by reading chunks.
