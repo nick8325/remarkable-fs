@@ -412,7 +412,8 @@ class NewDocument(Node):
             self.really_save()
 
     def really_save(self):
-        if self.modified:
+        # Don't save zero-size files - Finder creates them
+        if self.modified and len(self.buf.getvalue()) > 0:
             try:
                 (filetype, data) = convert_document(self.buf.getvalue())
             except IOError:

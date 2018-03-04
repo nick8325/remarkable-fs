@@ -95,7 +95,7 @@ class Remarkable(Operations):
 
         # Don't allow overwriting existing files
         # (changing this needs more code in documents.py)
-        if flags & O_WRONLY or flags & O_RDWR and not isinstanceof(node, Document):
+        if flags & O_WRONLY or flags & O_RDWR and not isinstance(node, NewDocument):
             raise FuseOSError(EPERM)
 
         return self.fds.new(self.node(path))

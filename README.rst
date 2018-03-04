@@ -54,9 +54,6 @@ If all goes well, you will find all your documents in the directory
 you chose. You can copy PDF or EPUB files there, and they will appear
 on the reMarkable; you can also move files around. Go wild!
 
-(On macOS, the directory will appear in the Finder under the name
-"OSXFUSE Volume 0 (Python)".)
-
 When you are finished, you can stop ``remarkable-fs`` by pressing ctrl-C.
 
 Note that your reMarkable will be unresponsive for the time you have
