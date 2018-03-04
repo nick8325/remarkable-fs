@@ -241,6 +241,7 @@ class DocumentRoot(Collection):
         super(DocumentRoot, self).__init__(self, "", None)
         self.nodes = {"": self}
         self.sftp = connection.sftp
+        self.templates = {}
 
         paths = fnmatch.filter(self.sftp.listdir(), '*.metadata')
         bar = Bar("Reading document information", max=len(paths))
@@ -333,6 +334,18 @@ class DocumentRoot(Collection):
         """Write the .content file for a given id, given as a dict."""
         self.write_json(id + ".content", content)
 
+    def read_template(self, name):
+        """Read a particular template file. Returns a local filename."""
+        file = self.templates.get(name)
+        if file is None:
+            data = self.read_file("/usr/share/remarkable/templates/%s.png" % name)
+            file = NamedTemporaryFile(suffix = ".png")
+            file.write(data)
+            file.flush()
+            self.templates[name] = file
+
+        return file.name
+
 class Document(Node):
     """A single document on the reMarkable."""
 
@@ -356,7 +369,14 @@ class Document(Node):
         file = self.root.sftp.open(self.id + "." + ext)
 
         if ext == "lines":
-            file = convert_lines_file(file)
+            templates = []
+            for template in self.root.read_file(self.id + ".pagedata").splitlines():
+                if template == "Blank":
+                    templates.append(None)
+                else:
+                    templates.append(self.root.read_template(template))
+
+            file = convert_lines_file(file, templates)
 
         return file
 
@@ -463,15 +483,18 @@ def initial_metadata(node_type, name, parent):
         "visibleName": name
     }
 
-def convert_lines_file(file):
+def convert_lines_file(file, templates):
     """Convert a .lines file to .pdf.
 
-    Input and output are file objects."""
+    file - input file as a file object
+    templates - list of template filenames, one per page, each may be None.
+
+    Returns output as a file object."""
 
     outfile = NamedTemporaryFile(suffix = ".pdf", delete = False)
     outname = outfile.name
     outfile.close()
-    rM2svg.lines2cairo(file, outname, None)
+    rM2svg.lines2cairo(file, outname, templates)
     result = open(outname)
     try:
         os.unlink(outname)

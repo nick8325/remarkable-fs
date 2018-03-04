@@ -102,7 +102,7 @@ class FPDFPlus(FPDF):
             self._out("/GS%d %d 0 R" % (i, self.ext_gs_objs[x]))
         self._out(">>")
 
-def lines2cairo(input_file, output_name, pdf_name):
+def lines2cairo(input_file, output_name, templates):
     # Read the file in memory. Consider optimising by reading chunks.
     #with open(input_file, 'rb') as f:
     #    data = f.read()
@@ -142,6 +142,13 @@ def lines2cairo(input_file, output_name, pdf_name):
     # Iterate through pages (There is at least one)
     for page in range(npages):
         pdf.add_page()
+
+        template = None
+        if templates:
+            template = templates.pop(0)
+
+        if template is not None:
+            pdf.image(template, 0, 0, pdfx, pdfy)
         
         fmt = '<BBH' # TODO might be 'I'
         nlayers, b_unk, h_unk = struct.unpack_from(fmt, data, offset); offset += struct.calcsize(fmt)
