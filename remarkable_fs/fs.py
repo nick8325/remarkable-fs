@@ -1,10 +1,14 @@
+"""A FUSE filesystem wrapper for the reMarkable."""
+
 import os
 import sys
 from errno import *
+from posix import O_WRONLY, O_RDWR
 import stat
 from fuse import FUSE, FuseOSError, Operations
-from remarkable_fs.documents import Collection, Document, new_collection, new_document, known_extensions
+from remarkable_fs.documents import Collection, Document
 from io import BytesIO
+import traceback
 
 class FileHandles(object):
     """Keeps track of the mapping between file handles and files."""
@@ -17,9 +21,7 @@ class FileHandles(object):
         self.next_file_handle = 0
 
     def new(self, file):
-        """Allocate a new file descriptor and return it.
-
-        The file must implement save()."""
+        """Allocate a new file descriptor and return it."""
         
         # Find a free file handle
         if self.free_file_handles:
@@ -33,12 +35,8 @@ class FileHandles(object):
         return fd
 
     def close(self, fd):
-        """Close a file descriptor.
+        """Close a file descriptor."""
 
-        Calls the save() method of the underlying file."""
-
-        file = self.file_handles[fd]
-        file.save()
         del self.file_handles[fd]
         self.free_file_handles.append(fd)
 
@@ -47,7 +45,11 @@ class FileHandles(object):
         return self.file_handles[fd]
 
 class Remarkable(Operations):
+    """The main filesystem implementation."""
+
     def __init__(self, documents):
+        """documents - a remarkable_fs.documents.DocumentRoot object."""
+
         self.documents = documents
         self.fds = FileHandles()
 
@@ -89,6 +91,13 @@ class Remarkable(Operations):
     #
     
     def open(self, path, flags):
+        node = self.node(path)
+
+        # Don't allow overwriting existing files
+        # (changing this needs more code in documents.py)
+        if flags & O_WRONLY or flags & O_RDWR and not isinstanceof(node, Document):
+            raise FuseOSError(EPERM)
+
         return self.fds.new(self.node(path))
 
     def create(self, path, flags):
@@ -98,7 +107,15 @@ class Remarkable(Operations):
         if name in parent:
             raise FuseOSError(EEXIST)
 
-        return self.fds.new(new_document(self.documents, name, parent))
+        return self.fds.new(parent.new_document(name))
+
+    def flush(self, path, fd):
+        try:
+            self.fds.get(fd).save()
+        except IOError:
+            # File conversion error
+            traceback.print_exc()
+            raise FuseOSError(EIO)
 
     def release(self, path, fd):
         self.fds.close(fd)
@@ -107,38 +124,32 @@ class Remarkable(Operations):
     # Reading and writing files
     #
     
-    def read(self, path, size, offset, fh):
-        node = self.fds.get(fh)
+    def read(self, path, size, offset, fd):
+        node = self.fds.get(fd)
         if isinstance(node, Collection):
             raise FuseOSError(EISDIR)
-        return self.fds.get(fh).read(offset, size)
+        return self.fds.get(fd).read(offset, size)
 
-    def write(self, path, data, offset, fh):
-        node = self.fds.get(fh)
+    def write(self, path, data, offset, fd):
+        node = self.fds.get(fd)
         if isinstance(node, Collection):
             raise FuseOSError(EISDIR)
-
-        # Don't allow overwriting existing files
-        # (changing this needs more code in documents.py)
-        if hasattr(node, "write"):
-            node.write(offset, data)
-        else:
-            raise FuseOSError(EBADF)
+        node.write(offset, data)
         
         return len(data)
 
-    def truncate(self, path, length, fh=None):
-        if fh is None:
+    def truncate(self, path, length, fd=None):
+        if fd is None:
             node = self.node(path)
         else:
-            node = self.fds.get(fh)
+            node = self.fds.get(fd)
 
         # Don't allow overwriting existing files
         # (changing this needs more code in documents.py)
         if hasattr(node, "truncate"):
             node.truncate(length)
         else:
-            raise FuseOSError(EBADF)
+            raise FuseOSError(EPERM)
         
     #
     # Creating directories, moving, deleting
@@ -148,7 +159,7 @@ class Remarkable(Operations):
         parent, name = self.parent(path)
         if name in parent:
             raise FuseOSError(EEXIST)
-        new_collection(self.documents, name, parent)
+        parent.new_collection(name)
 
     def rmdir(self, path):
         node = self.node(path)
@@ -163,16 +174,23 @@ class Remarkable(Operations):
         new_dir, new_file = self.parent(new)
         new_node = new_dir.get(new_file)
 
-        if new_node is None:
-            # It's a move with a filename
-            old_node.rename(new_dir, new_file)
-        elif isinstance(new_node, Collection):
-            # It's a move into a directory
-            old_node.rename(new_node, old_node.name)
-        else:
-            # It's overwriting a file
-            new_node.delete()
-            old_node.rename(new_dir, new_file)
+        try:
+            if new_node is None:
+                # It's a move with a filename
+                old_node.rename(new_dir, new_file)
+            elif isinstance(new_node, Collection):
+                # It's a move into a directory
+                old_node.rename(new_node, old_node.name)
+            else:
+                # It's overwriting a file.
+                # Don't allow this because it might be an editor doing
+                # a rename to overwrite the file with a new version.
+                # This would lose all handwritten notes associated with the file.
+                raise FuseOSError(EEXIST)
+        except IOError:
+            # File conversion error
+            traceback.print_exc()
+            raise FuseOSError(EIO)
 
     def unlink(self, path):
         node = self.node(path)
@@ -184,11 +202,14 @@ class Remarkable(Operations):
     # Reading directories and statting files
     #
     
-    opendir = open
-    releasedir = release
+    def opendir(self, path):
+        return self.fds.new(self.node(path))
 
-    def readdir(self, path, fh):
-        node = self.fds.get(fh)
+    def releasedir(self, path, fd):
+        self.fds.close(fd)
+
+    def readdir(self, path, fd):
+        node = self.fds.get(fd)
         if isinstance(node, Collection):
             yield "."
             yield ".."
@@ -197,13 +218,13 @@ class Remarkable(Operations):
         else:
             raise FuseOSError(ENOTDIR)
 
-    def getattr(self, path, fh=None):
-        if fh is None:
+    def getattr(self, path, fd=None):
+        if fd is None:
             node = self.node(path)
         else:
-            node = self.fds.get(fh)
+            node = self.fds.get(fd)
 
-        mode = stat.S_IRUSR + stat.S_IRGRP + stat.S_IROTH + stat.S_IWUSR
+        mode = stat.S_IRUSR + stat.S_IRGRP + stat.S_IROTH
         if isinstance(node, Collection):
             mode += stat.S_IFDIR + stat.S_IXUSR + stat.S_IXGRP + stat.S_IXOTH
         else:
@@ -242,7 +263,7 @@ class Remarkable(Operations):
 
     def getxattr(self, path, name, position=0):
         if name != "user.bookmarked":
-            raise FuseOSError(ENOTSUP)
+            return ""
 
         node = self.node(path)
         if node.pinned:
@@ -252,7 +273,7 @@ class Remarkable(Operations):
 
     def setxattr(self, path, name, value, options, position=0):
         if name != "user.bookmarked":
-            raise FuseOSError(ENOTSUP)
+            return
 
         if value == "yes" or value == "true" or value == "1":
             pinned = True
@@ -265,5 +286,10 @@ class Remarkable(Operations):
         node.pinned = pinned
         node.save()
 
-def mount(mountpoint, documents):
-    FUSE(Remarkable(documents), mountpoint, nothreads=True, foreground=True, big_writes=True, max_write=1048576)
+def mount(mountpoint, documents, **kwargs):
+    """Mount the FUSE filesystem.
+
+    mountpoint - directory name of mount point
+    documents - remarkable_fs.documents.DocumentRoot object"""
+
+    FUSE(Remarkable(documents), mountpoint, nothreads=True, foreground=True, big_writes=True, max_write=1048576, **kwargs)

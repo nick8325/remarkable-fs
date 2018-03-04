@@ -1,3 +1,15 @@
+"""Classes for reading and creating reMarkable documents. The main entry point
+to this module is the DocumentRoot class.
+
+Minimal example:
+
+>>> from remarkable_fs.connection import connect
+>>> from remarkable_fs.documents import DocumentRoot
+>>>
+>>> with connect() as conn:
+>>>     root = DocumentRoot(conn)
+>>>     print root["foo.pdf"].read(0, 4096) # prints first 4KB of foo.pdf"""
+
 import fnmatch
 import json
 import time
@@ -17,12 +29,39 @@ except ImportError:
     JSONDecodeError = ValueError
 
 class Node(object):
+    """A document or collection on the reMarkable.
+
+    Most of the properties below are read-write, but to persist any changes to
+    the reMarkable, you must call save()."""
+
     def __init__(self, root, id, metadata):
+        """Create a new Node object. Unless you are hacking on this module, you
+        do not want to do this. Instead, you can get existing documents by
+        indexing into the DocumentRoot, or create new ones with
+        Collection.new_document or Collection.new_collection.
+
+        For those hacking on this module, creating a node object requires the
+        following steps:
+        * The correct class must be chosen for the node (either Collection,
+          Document or NewDocument).
+        * An object of that class is created, passing in the DocumentRoot and
+          the node's id and metadata (which is stored as a dict).
+          A new id can be created using new_id().
+          Metadata can be read using DocumentRoot.read_metadata,
+          or created using initial_metadata.
+        * The node is registered using DocumentRoot.register_node().
+        * The node is added to the directory hierarchy by calling link().
+          This can only be called if the parent node has been created,
+          which is why it is not done automatically.
+        The easiest way to create a node is to write the metadata to the
+        reMarkable, and then call DocumentRoot.load_node() to load it.
+        That is what Collection.new_collection() does, for example."""
+
         self.root = root
         self.id = id
         self.metadata = metadata
         self.modified = False
-        if self.metadata is not None:
+        if metadata is not None:
             self.file_name = self.name
 
     def __repr__(self):
@@ -32,11 +71,18 @@ class Node(object):
              self.name)
 
     def link(self):
+        """Add a node to the directory hierarchy. May only be called after the
+        parent node has been loaded. Unless you are hacking on this module, you
+        do not want this function."""
+
         self.parent = self.root.find_node(self.metadata["parent"])
         if self.parent is not None:
             self.parent.add_child(self)
 
-    def _rw(name):
+    def _rw(name, doc):
+        """Creates a property which references a metadata field. On update, the
+        metadata is marked as being modified."""
+
         def get(self):
             return self.metadata[name]
         def set(self, val):
@@ -45,61 +91,91 @@ class Node(object):
             self.metadata["version"] += 1
             self.metadata[name] = val
             self.modified = True
-        return property(fget=get, fset=set)
+        return property(fget=get, fset=set, doc=doc)
     
-    name = _rw("visibleName")
-    deleted = _rw("deleted")
-    data_modified = _rw("modified")
-    pinned = _rw("pinned")
-
-    @property
-    def visible(self):
-        return not self.deleted
+    name = _rw("visibleName", "The document name.")
+    deleted = _rw("deleted", "True if the document has been deleted.")
+    data_modified = _rw("modified", "True if the data in the document has been modified.")
+    pinned = _rw("pinned", "True if the document is bookmarked.")
 
     @property
     def metadata_modified(self):
+        """True if the metadata of the document has been modified."""
         return self.metadata["metadatamodified"]
 
     @property
     def size(self):
+        """The approximate size of the document in bytes."""
         return 0
 
     @property
     def mtime(self):
+        """The modification time of the document."""
         if self.metadata is None:
             return time.time()
         else:
             return int(int(self.metadata["lastModified"])/1000)
 
     def save(self):
+        """Write the document to the reMarkable if it has been changed."""
         if self.modified:
             self.root.write_metadata(self.id, self.metadata)
             self.modified = False
 
-    def rename(self, parent, name):
-        if self.parent == parent and self.name == name:
-            return
+    def rename(self, parent, file_name):
+        """Rename the document. Arguments are the parent node and the new filename."""
 
         self.parent.remove_child(self)
-        self.name = strip_extension(name)
-        self.file_name = name
+        self.name = strip_extension(file_name)
+        self.file_name = file_name
         self.metadata["parent"] = parent.id
         self.parent = parent
         self.parent.add_child(self)
         self.save()
     
     def delete(self):
+        """Delete the document."""
         self.parent.remove_child(self)
         self.deleted = True
         self.save()
 
 class Collection(Node):
+    """A reMarkable collection.
+
+    You can index into a Collection as if it was a dict. The keys are filenames
+    and the values are nodes."""
+
     def __init__(self, root, id, metadata):
         super(Collection, self).__init__(root, id, metadata)
         self.children = {}
         self.children_pathnames = {}
 
+    def new_collection(self, name):
+        """Create a new collection. Returns the created node."""
+
+        id = new_id()
+        metadata = initial_metadata(Collection.node_type(), name, self.id)
+        self.root.write_metadata(id, metadata)
+        self.root.write_content(id, {})
+        return self.root.load_node(id)
+
+    def new_document(self, name):
+        """Create a new document. Returns the created node.
+
+        The document will not be written to the reMarkable until the node's
+        save() method is called."""
+
+        id = new_id()
+        metadata = initial_metadata(Document.node_type(), strip_extension(name), self.id)
+        node = NewDocument(self.root, id, metadata, name)
+        self.root.register_node(node)
+        node.link()
+        return node
+
     def add_child(self, child):
+        """Add a node to this collection. Called by link().
+        Unless you are hacking on this module, you do not want this function."""
+
         # Remove invalid chars
         name = child.file_name.replace("/", "-")
 
@@ -115,9 +191,20 @@ class Collection(Node):
         self.children_pathnames[child] = name
 
     def remove_child(self, child):
+        """Remove a node from this collection. Called by rename() and delete().
+        Unless you are hacking on this module, you do not want this function."""
+
         name = self.children_pathnames[child]
         del self.children[name]
         del self.children_pathnames[child]
+
+    def get(self, file):
+        """Look up a file in the collection. Returns a node, or None if not found."""
+        return self.children.get(file)
+
+    def items(self):
+        """Find all nodes in the collection."""
+        return self.children.items()
 
     def __repr__(self):
         return "%s(%s, %s, %s)" % \
@@ -135,32 +222,41 @@ class Collection(Node):
     def __contains__(self, item):
         return item in self.children
 
-    def get(self, key):
-        return self.children.get(key)
-
-    def items(self):
-        return self.children.items()
-
     @staticmethod
     def node_type():
         return "CollectionType"
 
 class DocumentRoot(Collection):
-    def __init__(self, sftp):
-        super(DocumentRoot, self).__init__(self, None, None)
-        self.id = ""
-        self.sftp = sftp
-        self.nodes = {"": self}
+    """A collection representing the root of the reMarkable directory tree.
 
-        paths = fnmatch.filter(sftp.listdir(), '*.metadata')
+    Creating one of these will read in all metadata and construct the directory hierarchy.
+
+    You can index into a DocumentRoot as if it was a dict. The keys are
+    filenames and the values are nodes. You can also use find_node() to look up
+    a node by id."""
+
+    def __init__(self, connection):
+        """connection - a Connection object returned by remarkable_fs.connection.connect()."""
+
+        super(DocumentRoot, self).__init__(self, "", None)
+        self.nodes = {"": self}
+        self.sftp = connection.sftp
+
+        paths = fnmatch.filter(self.sftp.listdir(), '*.metadata')
         bar = Bar("Reading document information", max=len(paths))
         for path in paths:
             id, _ = os.path.splitext(path)
             self.load_node_without_linking(id)
             bar.next()
 
-        self.link_nodes()
+        for node in self.nodes.values():
+            node.link()
+
         bar.finish()
+
+    def find_node(self, id):
+        """Find a node by id. Returns None if not found."""
+        return self.nodes.get(id)
 
     @property
     def name(self):
@@ -170,11 +266,17 @@ class DocumentRoot(Collection):
         pass
 
     def load_node(self, id):
+        """Read a node from the reMarkable and link it into the tree.
+        Unless you are hacking on this module, you do not want this function."""
+
         node = self.load_node_without_linking(id)
         if node is not None: node.link()
         return node
 
     def load_node_without_linking(self, id):
+        """Read a node from the reMarkable, without linking it into the tree.
+        Unless you are hacking on this module, you do not want this function."""
+
         classes = [Document, Collection]
         classes_dict = {cls.node_type(): cls for cls in classes}
 
@@ -186,98 +288,102 @@ class DocumentRoot(Collection):
           
         try:
             node = cls(self, id, metadata)
-            if node.visible:
-                self.nodes[id] = node
+            if not node.deleted:
+                self.register_node(node)
                 return node
         except (IOError, JSONDecodeError):
             traceback.print_exc()
 
-    def link_nodes(self):
-        for node in self.nodes.values():
-            node.link()
-
-    def find_node(self, id):
-        return self.nodes.get(id)
+    def register_node(self, node):
+        """Register a node object. Unless you are hacking on this module, you do
+        not want this function."""
+        self.nodes[node.id] = node
 
     def read_file(self, file):
+        """Read a file from SFTP."""
         return self.sftp.open(file).read()
 
-    def write_file(self, file, contents):
+    def write_file(self, file, data):
+        """Write a file to SFTP."""
         f = self.sftp.open(file, 'w')
         f.set_pipelined()
-        f.write(memoryview(contents))
+        f.write(memoryview(data))
 
     def read_json(self, file):
+        """Read a JSON file from SFTP and convert to a dict."""
         return json.loads(self.read_file(file).decode("utf-8"))
         
     def write_json(self, file, value):
+        """Write a JSON file from SFTP, given as a dict."""
         self.write_file(file, json.dumps(value).encode("utf-8"))
 
     def read_metadata(self, id):
+        """Read the metadata for a given id and convert to a dict."""
         return self.read_json(id + ".metadata")
 
     def write_metadata(self, id, metadata):
+        """Write the metadata for a given id, given as a dict."""
         self.write_json(id + ".metadata", metadata)
 
     def read_content(self, id):
+        """Read the .content file for a given id and convert to a dict."""
         return self.read_json(id + ".content")
 
     def write_content(self, id, content):
+        """Write the .content file for a given id, given as a dict."""
         self.write_json(id + ".content", content)
 
-# XXX split this up into two files
 class Document(Node):
+    """A single document on the reMarkable."""
+
     def __init__(self, root, id, metadata):
         super(Document, self).__init__(root, id, metadata)
         self.content = self.root.read_content(id)
-        self.file_name = self.name + "." + self.file_type
-        self._size = self.root.sftp.stat(self.id + "." + (self.content["fileType"] or "lines")).st_size
+        self.file_name = self.name + "." + self.file_type("pdf")
+        self._size = self.root.sftp.stat(self.id + "." + self.file_type("lines")).st_size
 
-    @property
-    def file_type(self):
-        return self.content["fileType"] or "pdf"
+    def file_type(self, default):
+        """Return the type of file. If blank (corresponding to a .lines) file,
+        returns default."""
+        return self.content["fileType"] or default
 
     @lazy
     def file(self):
-        ext = self.content["fileType"]
-        if ext == "":
-            return self.read_lines_file(self.root.sftp.open(self.id + ".lines"))
-        else:
-            return self.root.sftp.open(self.id + "." + ext)
+        """A file handle to the file contents itself.
+
+        If the file is a .lines file, this is auto-converted to PDF."""
+        ext = self.file_type("lines")
+        file = self.root.sftp.open(self.id + "." + ext)
+
+        if ext == "lines":
+            file = convert_lines_file(file)
+
+        return file
 
     @property
     def size(self):
         return self._size
 
-    def read_lines_file(self, file):
-        outfile = NamedTemporaryFile(suffix = ".pdf", delete = False)
-        outname = outfile.name
-        outfile.close()
-        rM2svg.lines2cairo(file, outname, None)
-        result = open(outname)
-        try:
-            os.unlink(outname)
-        except OSError:
-            pass
-        return result
-    
     def read(self, offset, length):
-        if hasattr(self.file, "readv"):
-            [str] = self.file.readv([(offset, length)])
-            return str
-        else:
-            self.file.seek(offset)
-            return self.file.read(length)
+        """Read length bytes from position offset."""
+        self.file.seek(offset)
+        return self.file.read(length)
     
-    @property
-    def visible(self):
-        return super(Document, self).visible
-
     @staticmethod
     def node_type():
         return "DocumentType"
 
 class NewDocument(Node):
+    """A newly-created document, which (unlike an object of class Document) can
+    be both read and written.
+
+    On calling save(), the document is converted to PDF or EPUB (if necessary)
+    and written to the remarkable. If the document could not be converted.
+    an IOError is thrown.
+
+    File names starting with a dot are not written to the reMarkable
+    (they are treated as temporary files)."""
+
     def __init__(self, root, id, metadata, filename):
         super(NewDocument, self).__init__(root, id, metadata)
         self.modified = True
@@ -289,83 +395,124 @@ class NewDocument(Node):
         return len(self.buf.getvalue())
 
     def read(self, offset, length):
+        """Read length bytes from position offset."""
         return self.buf.getvalue()[offset:offset+length]
 
     def write(self, offset, data):
+        """Read data to position offset."""
         self.buf.seek(offset)
         self.buf.write(data)
 
-    def truncate(self):
-        self.buf.truncate()
+    def truncate(self, length):
+        """Truncate the file to a certain length."""
+        self.buf.truncate(length)
     
     def save(self):
-        if not self.deleted:
-            contents = self.buf.getvalue()
+        if not self.file_name.startswith(".") and not self.deleted:
+            self.really_save()
 
-            convert = None
-            if contents.startswith(b"%PDF"):
-                filetype = "pdf"
-            elif contents.startswith(b"AT&TFORM"):
-                filetype = "pdf"
-                suffix = ".djvu"
-                convert = "ddjvu --format=pdf"
-            elif contents.startswith(b"%!PS-Adobe"):
-                filetype = "pdf"
-                suffix = ".ps"
-                convert = "ps2pdf"
-            elif contents.startswith(b"PK"):
-                filetype = "epub"
-            else:
-                raise RuntimeError("Only PDF, epub, djvu and ps format files supported")
-
-            if convert is not None:
-                infile = NamedTemporaryFile(suffix = suffix)
-                outfile = NamedTemporaryFile(suffix = ".pdf")
-                infile.write(contents)
-                infile.flush()
-                os.system("%s %s %s" % (convert, infile.name, outfile.name))
-                contents = outfile.read()
-
-            content = {"fileType": filetype}
-            self.root.write_content(self.id, content)
-            self.root.write_file(self.id + "." + filetype, contents)
+    def really_save(self):
+        if self.modified:
+            try:
+                (filetype, data) = convert_document(self.buf.getvalue())
+            except IOError:
+                self.delete()
+                raise
+            self.root.write_content(self.id, {"fileType": filetype})
+            self.root.write_file(self.id + "." + filetype, data)
             super(NewDocument, self).save()
 
-def new_collection(root, name, parent):
-    id = new_id()
-    metadata = initial_metadata(Collection.node_type(), name, parent)
-    root.write_metadata(id, metadata)
-    root.write_content(id, {})
-    return root.load_node(id)
+    def rename(self, parent, file_name):
+        # If this file starts with a dot and now we want to rename it so it
+        # doesn't, we can no longer treat it as a temporary file.
+        if not file_name.startswith("."):
+            self.really_save()
+        super(NewDocument, self).rename(parent, file_name)
 
-def new_document(root, name, parent):
-    id = new_id()
-    metadata = initial_metadata(Document.node_type(), strip_extension(name), parent)
-    node = NewDocument(root, id, metadata, name)
-    node.link()
-    return node
+def new_id():
+    """Generate a new document id."""
 
-known_extensions = ["pdf", "djvu", "ps", "epub"]
+    return str(uuid4())
 
 def strip_extension(filename):
+    """Remove the extension from a filename, if it is a recognised document type."""
+
     name, ext = os.path.splitext(filename)
-    if ext in ["." + ext for ext in known_extensions]:
+    if ext in [".pdf", ".djvu", ".ps", ".epub"]:
         return name
     return filename
 
-def new_id():
-    return str(uuid4())
-
 def initial_metadata(node_type, name, parent):
+    """The .metadata for a newly-created node.
+
+    node_type - value of 'type' field of .metadata file
+    name - node name
+    parent - parent id (not node object)"""
+
     return {
         "deleted": False,
         "lastModified": str(int(time.time()*1000)),
         "metadatamodified": True,
         "modified": True,
-        "parent": parent.id,
+        "parent": parent,
         "pinned": False,
         "synced": False,
         "type": node_type,
         "version": 1,
         "visibleName": name
     }
+
+def convert_lines_file(file):
+    """Convert a .lines file to .pdf.
+
+    Input and output are file objects."""
+
+    outfile = NamedTemporaryFile(suffix = ".pdf", delete = False)
+    outname = outfile.name
+    outfile.close()
+    rM2svg.lines2cairo(file, outname, None)
+    result = open(outname)
+    try:
+        os.unlink(outname)
+    except OSError:
+        # unlink will fail on windows
+        pass
+    return result
+
+def convert_document(data):
+    """Convert a document to PDF or EPUB.
+
+    Input is the document contents as a 'bytes'.
+
+    Returns (filetype, converted contents) where filetype is either "pdf" or
+    "epub" and converted contents is a 'bytes'.
+
+    Raises IOError if the file could not be converted."""
+
+    convert = None
+    if data.startswith(b"%PDF"):
+        filetype = "pdf"
+    elif data.startswith(b"AT&TFORM"):
+        filetype = "pdf"
+        suffix = ".djvu"
+        convert = "ddjvu --format=pdf"
+    elif data.startswith(b"%!PS-Adobe"):
+        filetype = "pdf"
+        suffix = ".ps"
+        convert = "ps2pdf"
+    elif data.startswith(b"PK"):
+        filetype = "epub"
+    else:
+        raise IOError("Only PDF, epub, djvu and ps format files supported")
+
+    if convert is not None:
+        infile = NamedTemporaryFile(suffix = suffix)
+        outfile = NamedTemporaryFile(suffix = ".pdf")
+        infile.write(data)
+        infile.flush()
+        res = os.system("%s %s %s" % (convert, infile.name, outfile.name))
+        if res != 0:
+            raise IOError("Could not run %s" % convert)
+        data = outfile.read()
+
+    return (filetype, data)

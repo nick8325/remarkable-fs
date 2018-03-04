@@ -1,3 +1,5 @@
+"""Handles maintaining a connection to the reMarkable."""
+
 from contextlib import contextmanager
 from collections import namedtuple
 from paramiko.client import SSHClient, AutoAddPolicy
@@ -10,6 +12,11 @@ Connection = namedtuple('Connection', 'ssh sftp')
 
 @contextmanager
 def connect():
+    """Connect to the remarkable. Yields a Connection object.
+
+    The sftp field of the connection object has as its working directory the
+    data directory of xochitl."""
+
     with SSHClient() as ssh:
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(AutoAddPolicy)
