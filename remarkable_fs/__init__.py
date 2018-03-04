@@ -11,13 +11,13 @@ except:
     raw_input = input
 
 def main(argv = sys.argv):
-    if len(argv) == 2:
+    if len(argv) >= 2:
         mount_point = argv[1]
     else:
         mount_point = raw_input("Directory: ")
 
     print("Connecting to reMarkable...")
-    with connect() as conn:
+    with connect(*argv[2:]) as conn:
         root = DocumentRoot(conn)
         print("Now serving documents at " + mount_point)
         kwargs={}
