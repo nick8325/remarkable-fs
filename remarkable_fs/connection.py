@@ -11,23 +11,24 @@ from signal import signal, SIGTERM, SIGHUP
 Connection = namedtuple('Connection', 'ssh sftp')
 
 @contextmanager
-def connect(ADDR='10.11.99.1'):
+def connect(addr=None):
     """Connect to the remarkable. Yields a Connection object.
 
     The sftp field of the connection object has as its working directory the
     data directory of xochitl."""
 
+    default_addr = "10.11.99.1"
     with SSHClient() as ssh:
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(AutoAddPolicy)
         try:
-            ssh.connect(ADDR, username="root")
+            ssh.connect(addr or default_addr, username="root")
         except (SSHException, AuthenticationException):
             print("Please enter the root password of your reMarkable.")
             print("To find out the password, follow the instructions at:")
             print("http://remarkablewiki.com/index.php?title=Methods_of_access#Connecting_via_ssh")
             password = getpass()
-            ssh.connect(ADDR, username="root", password=password, look_for_keys=False)
+            ssh.connect(addr or default_addr, username="root", password=password, look_for_keys=False)
 
         # Stop xochitl but restart it again if the connection drops
         on_start = "systemctl stop xochitl"
@@ -36,7 +37,9 @@ def connect(ADDR='10.11.99.1'):
         # We also kill the SSH connection so that the information
         # in FUSE is not out of date.
         ssh.exec_command(on_start)
-        ssh.exec_command("while udevadm info -p /devices/soc0/soc/2100000.aips-bus/2184000.usb/power_supply/imx_usb_charger | grep -q POWER_SUPPLY_ONLINE=1; do sleep 1; done; %s; kill $PPID" % on_finish)
+        if addr is None:
+            # Only do this if we are plugged in to the device
+            ssh.exec_command("while udevadm info -p /devices/soc0/soc/2100000.aips-bus/2184000.usb/power_supply/imx_usb_charger | grep -q POWER_SUPPLY_ONLINE=1; do sleep 1; done; %s; kill $PPID" % on_finish)
 
         try:
             def raise_exception(*args):
