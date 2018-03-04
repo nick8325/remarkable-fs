@@ -17,9 +17,9 @@ unwilling to lose all your documents. Use at your own risk!*
 Installation
 ------------
 
-``remarkable-fs`` works on both Linux and macOS. Note that on macOS,
-copying files using the Finder does not yet work, you will have to use
-the terminal. To install it, you will need to have first installed:
+``remarkable-fs`` works on both Linux and macOS. Support for macOS may
+be a bit patchy as I myself run Linux, but at least the basics should
+work. To install it, you will need to have first installed:
 
 - FUSE. If on macOS, get this from the `Fuse for macOS`_ project. If
   on Linux, your package manager should have it.
@@ -32,6 +32,9 @@ Then, to install ``remarkable-fs``, run the following command in a
 terminal:
 
   sudo pip install remarkable-fs
+
+Note for Linux users: ``remarkable-fs`` supports both Python 2 and 3,
+but for handwritten notes it works much faster on *Python 2*.
 
 Running
 -------

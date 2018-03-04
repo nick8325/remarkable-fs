@@ -267,9 +267,9 @@ class Remarkable(Operations):
 
         node = self.node(path)
         if node.pinned:
-            return "yes"
+            return b"yes"
         else:
-            return "no"
+            return b"no"
 
     def setxattr(self, path, name, value, options, position=0):
         if name != "user.bookmarked":
