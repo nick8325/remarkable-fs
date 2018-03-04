@@ -39,6 +39,7 @@ but for handwritten notes it works much faster on *Python 2*.
 Running
 -------
 
+First make sure that your reMarkable is plugged into your computer.
 Make an empty directory on your computer. This directory is where your
 documents will appear. Then run ``remarkable-fs``. You will be
 prompted for the path to this directory; type it in. (On macOS, you
