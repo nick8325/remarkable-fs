@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile
 from uuid import uuid4
 from lazy import lazy
 from progress.bar import Bar
+from io import BytesIO
 import rM2svg
 
 try:
@@ -20,6 +21,7 @@ class Node(object):
         self.root = root
         self.id = id
         self.metadata = metadata
+        self.modified = False
         if self.metadata is not None:
             self.file_name = self.name
 
@@ -34,12 +36,6 @@ class Node(object):
         if self.parent is not None:
             self.parent.add_child(self)
 
-    def get_times_from(self, file):
-        st = self.root.sftp.stat(file)
-        self.size = st.st_size
-        self.atime = st.st_atime
-        self.mtime = st.st_mtime
-
     def _rw(name):
         def get(self):
             return self.metadata[name]
@@ -48,6 +44,7 @@ class Node(object):
             self.metadata["metadatamodified"] = True
             self.metadata["version"] += 1
             self.metadata[name] = val
+            self.modified = True
         return property(fget=get, fset=set)
     
     name = _rw("visibleName")
@@ -63,9 +60,21 @@ class Node(object):
     def metadata_modified(self):
         return self.metadata["metadatamodified"]
 
+    @property
+    def size(self):
+        return 0
+
+    @property
+    def mtime(self):
+        if self.metadata is None:
+            return time.time()
+        else:
+            return int(int(self.metadata["lastModified"])/1000)
+
     def save(self):
-        if self.metadata_modified:
+        if self.modified:
             self.root.write_metadata(self.id, self.metadata)
+            self.modified = False
 
     def rename(self, parent, name):
         if self.parent == parent and self.name == name:
@@ -87,7 +96,6 @@ class Node(object):
 class Collection(Node):
     def __init__(self, root, id, metadata):
         super(Collection, self).__init__(root, id, metadata)
-        if id is not None: self.get_times_from(id + ".metadata")
         self.children = {}
         self.children_pathnames = {}
 
@@ -217,32 +225,29 @@ class DocumentRoot(Collection):
     def write_content(self, id, content):
         self.write_json(id + ".content", content)
 
+# XXX split this up into two files
 class Document(Node):
     def __init__(self, root, id, metadata):
         super(Document, self).__init__(root, id, metadata)
         self.content = self.root.read_content(id)
-        if self.visible:
-            self.get_times_from(self.raw_file_name)
         self.file_name = self.name + "." + self.file_type
-
-    @property
-    def raw_file_type(self):
-        return self.content["fileType"] or "lines"
+        self._size = self.root.sftp.stat(self.id + "." + (self.content["fileType"] or "lines")).st_size
 
     @property
     def file_type(self):
         return self.content["fileType"] or "pdf"
 
-    @property
-    def raw_file_name(self):
-        return self.id + "." + self.raw_file_type
-
     @lazy
     def file(self):
-        result = self.root.sftp.open(self.raw_file_name)
-        if self.raw_file_type == "lines":
-            result = self.read_lines_file(result)
-        return result
+        ext = self.content["fileType"]
+        if ext == "":
+            return self.read_lines_file(self.root.sftp.open(self.id + ".lines"))
+        else:
+            return self.root.sftp.open(self.id + "." + ext)
+
+    @property
+    def size(self):
+        return self._size
 
     def read_lines_file(self, file):
         outfile = NamedTemporaryFile(suffix = ".pdf", delete = False)
@@ -256,10 +261,7 @@ class Document(Node):
             pass
         return result
     
-    def read(self):
-        return self.file.read()
-    
-    def read_chunk(self, offset, length):
+    def read(self, offset, length):
         if hasattr(self.file, "readv"):
             [str] = self.file.readv([(offset, length)])
             return str
@@ -275,12 +277,73 @@ class Document(Node):
     def node_type():
         return "DocumentType"
 
+class NewDocument(Node):
+    def __init__(self, root, id, metadata, filename):
+        super(NewDocument, self).__init__(root, id, metadata)
+        self.modified = True
+        self.buf = BytesIO()
+        self.file_name = filename
+
+    @property
+    def size(self):
+        return len(self.buf.getvalue())
+
+    def read(self, offset, length):
+        return self.buf.getvalue()[offset:offset+length]
+
+    def write(self, offset, data):
+        self.buf.seek(offset)
+        self.buf.write(data)
+
+    def truncate(self):
+        self.buf.truncate()
+    
+    def save(self):
+        if not self.deleted:
+            contents = self.buf.getvalue()
+
+            convert = None
+            if contents.startswith(b"%PDF"):
+                filetype = "pdf"
+            elif contents.startswith(b"AT&TFORM"):
+                filetype = "pdf"
+                suffix = ".djvu"
+                convert = "ddjvu --format=pdf"
+            elif contents.startswith(b"%!PS-Adobe"):
+                filetype = "pdf"
+                suffix = ".ps"
+                convert = "ps2pdf"
+            elif contents.startswith(b"PK"):
+                filetype = "epub"
+            else:
+                raise RuntimeError("Only PDF, epub, djvu and ps format files supported")
+
+            if convert is not None:
+                infile = NamedTemporaryFile(suffix = suffix)
+                outfile = NamedTemporaryFile(suffix = ".pdf")
+                infile.write(contents)
+                infile.flush()
+                os.system("%s %s %s" % (convert, infile.name, outfile.name))
+                contents = outfile.read()
+
+            content = {"fileType": filetype}
+            self.root.write_content(self.id, content)
+            self.root.write_file(self.id + "." + filetype, contents)
+            super(NewDocument, self).save()
+
 def new_collection(root, name, parent):
     id = new_id()
     metadata = initial_metadata(Collection.node_type(), name, parent)
     root.write_metadata(id, metadata)
     root.write_content(id, {})
     return root.load_node(id)
+
+def new_document(root, name, parent):
+    id = new_id()
+    metadata = initial_metadata(Document.node_type(), strip_extension(name), parent)
+    node = NewDocument(root, id, metadata, name)
+    node.link()
+    return node
 
 known_extensions = ["pdf", "djvu", "ps", "epub"]
 
@@ -289,42 +352,6 @@ def strip_extension(filename):
     if ext in ["." + ext for ext in known_extensions]:
         return name
     return filename
-
-def new_document(root, name, parent, contents):
-    convert = None
-    if contents.startswith(b"%PDF"):
-        filetype = "pdf"
-    elif contents.startswith(b"AT&TFORM"):
-        filetype = "pdf"
-        suffix = ".djvu"
-        convert = "ddjvu --format=pdf"
-    elif contents.startswith(b"%!PS-Adobe"):
-        filetype = "pdf"
-        suffix = ".ps"
-        convert = "ps2pdf"
-    elif contents.startswith(b"PK"):
-        filetype = "epub"
-    else:
-        raise RuntimeError("Only PDF, epub, djvu and ps format files supported")
-
-    if convert is not None:
-        infile = NamedTemporaryFile(suffix = suffix)
-        outfile = NamedTemporaryFile(suffix = ".pdf")
-        infile.write(contents)
-        infile.flush()
-        os.system("%s %s %s" % (convert, infile.name, outfile.name))
-        contents = outfile.read()
-
-    id = new_id()
-    metadata = initial_metadata(Document.node_type(), strip_extension(name), parent)
-    root.write_metadata(id, metadata)
-
-    content = {"fileType": filetype}
-    root.write_content(id, content)
-    root.write_file(id + "." + filetype, contents)
-    node = root.load_node_without_linking(id)
-    node.file_name = name
-    node.link()
 
 def new_id():
     return str(uuid4())
