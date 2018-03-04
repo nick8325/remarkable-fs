@@ -15,7 +15,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='remarkable-fs',
     version='0.1',
-    description='View Remarkable tablet contents as an ordinary directory',
+    description='A FUSE filesystem driver for the reMarkable tablet',
     long_description=long_description,
     url='https://github.com/nick8325/remarkable-fs',
     author='Nick Smallbone',
