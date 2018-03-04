@@ -2,6 +2,7 @@ from remarkable_fs.connection import connect
 from remarkable_fs.documents import DocumentRoot
 from remarkable_fs.fs import mount
 import sys
+import fuse
 
 try:
     import __builtin__
@@ -17,6 +18,9 @@ def main(argv = sys.argv):
 
     print("Connecting to reMarkable...")
     with connect(*argv[2:]) as conn:
-        root = DocumentRoot(conn.sftp)
+        root = DocumentRoot(conn)
         print("Now serving documents at " + mount_point)
-        mount(mount_point, root)
+        kwargs={}
+        if fuse.system() == "Darwin":
+            kwargs["volname"] = "reMarkable"
+        mount(mount_point, root, **kwargs)

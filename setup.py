@@ -14,8 +14,8 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='remarkable-fs',
-    version='0.1',
-    description='View Remarkable tablet contents as an ordinary directory',
+    version='0.1.1',
+    description='A FUSE filesystem driver for the reMarkable tablet',
     long_description=long_description,
     url='https://github.com/nick8325/remarkable-fs',
     author='Nick Smallbone',
@@ -38,7 +38,7 @@ setup(
     keywords='remarkable fuse',
 
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    install_requires=['fusepy', 'paramiko', 'lazy', 'progress', 'cairocffi'],
+    install_requires=['fusepy', 'paramiko', 'lazy', 'progress', 'fpdf'],
 
     entry_points={
         'console_scripts': [

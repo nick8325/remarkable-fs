@@ -4,7 +4,8 @@ A FUSE filesystem driver for reMarkable
 ``remarkable-fs`` allows you to see the contents of your reMarkable as a normal
 folder on your computer. All your documents and folders are visible; you can
 copy documents to and from the reMarkable, create folders, and move and delete
-folders and files.
+folders and files. You cannot, however, edit documents that are
+already on the reMarkable (apart from moving or deleting them).
 
 It supports PDF files, EPUB files, and handwritten notes, but does not
 yet support annotated PDFs (they are exported without annotations).
@@ -18,17 +19,12 @@ Installation
 
 ``remarkable-fs`` works on both Linux and macOS. Note that on macOS,
 copying files using the Finder does not yet work, you will have to use
-the terminal. To install it, you will need:
-
-- Cairo. You probably have this if on Linux. On macOS, it is a bit
-  more involved. First, you have to install Homebrew by following the
-  instructions at http://brew.sh. Then, in a terminal, type
-  ``brew install cairo``.
+the terminal. To install it, you will need to have first installed:
 
 - FUSE. If on macOS, get this from the `Fuse for macOS`_ project. If
   on Linux, your package manager should have it.
 - ``pip``, the Python package installer. You can install this by running
-  ``sudo easy_install pip``.
+  ``sudo easy_install pip`` in a terminal.
 
 .. _Fuse for macOS: https://osxfuse.github.io/
 
@@ -59,8 +55,8 @@ If all goes well, you will find all your documents in the directory
 you chose. You can copy PDF or EPUB files there, and they will appear
 on the reMarkable; you can also move files around. Go wild!
 
-(On macOS, the directory will appear in the Finder under the name
-"OSXFUSE Volume 0 (Python)".)
+(On macOS, your reMarkable will also appear in the finder under the
+menu Go -> Computer.)
 
 When you are finished, you can stop ``remarkable-fs`` by pressing ctrl-C.
 
