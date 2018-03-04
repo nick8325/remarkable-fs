@@ -9,18 +9,18 @@ from signal import signal, SIGTERM, SIGHUP
 Connection = namedtuple('Connection', 'ssh sftp')
 
 @contextmanager
-def connect():
+def connect(ADDR='10.11.99.1'):
     with SSHClient() as ssh:
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(AutoAddPolicy)
         try:
-            ssh.connect('10.11.99.1', username="root")
+            ssh.connect(ADDR, username="root")
         except (SSHException, AuthenticationException):
             print("Please enter the root password of your reMarkable.")
             print("To find out the password, follow the instructions at:")
             print("http://remarkablewiki.com/index.php?title=Methods_of_access#Connecting_via_ssh")
             password = getpass()
-            ssh.connect('10.11.99.1', username="root", password=password, look_for_keys=False)
+            ssh.connect(ADDR, username="root", password=password, look_for_keys=False)
 
         # Stop xochitl but restart it again if the connection drops
         on_start = "systemctl stop xochitl"
