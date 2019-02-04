@@ -292,6 +292,8 @@ class DocumentRoot(Collection):
             if not node.deleted:
                 self.register_node(node)
                 return node
+        except NoContents:
+            pass
         except (IOError, JSONDecodeError):
             traceback.print_exc()
 
@@ -346,39 +348,30 @@ class DocumentRoot(Collection):
 
         return file.name
 
+class NoContents(Exception):
+    """An exception that indicates that a document only has notes and no PDF or EPUB file."""
+    pass
+
 class Document(Node):
     """A single document on the reMarkable."""
 
     def __init__(self, root, id, metadata):
         super(Document, self).__init__(root, id, metadata)
         self.content = self.root.read_content(id)
-        self.file_name = self.name + "." + self.file_type("pdf")
-        self._size = self.root.sftp.stat(self.id + "." + self.file_type("lines")).st_size
+        if self.file_type() == "":
+            raise NoContents()
+        self.file_name = self.name + "." + self.file_type()
+        self._size = self.root.sftp.stat(self.id + "." + self.file_type()).st_size
 
-    def file_type(self, default):
-        """Return the type of file. If blank (corresponding to a .lines) file,
-        returns default."""
-        return self.content["fileType"] or default
+    def file_type(self):
+        """Return the type of file."""
+        return self.content["fileType"]
 
     @lazy
     def file(self):
-        """A file handle to the file contents itself.
-
-        If the file is a .lines file, this is auto-converted to PDF."""
-        ext = self.file_type("lines")
-        file = self.root.sftp.open(self.id + "." + ext, "rb")
-
-        if ext == "lines":
-            templates = []
-            for template in self.root.read_file(self.id + ".pagedata").decode("utf-8").splitlines():
-                if template == "Blank":
-                    templates.append(None)
-                else:
-                    templates.append(self.root.read_template(template))
-
-            file = convert_lines_file(file, templates)
-
-        return file
+        """A file handle to the file contents itself."""
+        ext = self.file_type()
+        return self.root.sftp.open(self.id + "." + ext, "rb")
 
     @property
     def size(self):
@@ -482,26 +475,6 @@ def initial_metadata(node_type, name, parent):
         "version": 1,
         "visibleName": name
     }
-
-def convert_lines_file(file, templates):
-    """Convert a .lines file to .pdf.
-
-    file - input file as a file object
-    templates - list of template filenames, one per page, each may be None.
-
-    Returns output as a file object."""
-
-    outfile = NamedTemporaryFile(suffix = ".pdf", delete = False)
-    outname = outfile.name
-    outfile.close()
-    remarkable_fs.rM2svg.lines2cairo(file, outname, templates)
-    result = open(outname, "rb")
-    try:
-        os.unlink(outname)
-    except OSError:
-        # unlink will fail on windows
-        pass
-    return result
 
 def convert_document(data):
     """Convert a document to PDF or EPUB.
