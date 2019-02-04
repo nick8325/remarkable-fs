@@ -432,7 +432,29 @@ class NewDocument(Node):
             except IOError:
                 self.delete()
                 raise
-            self.root.write_content(self.id, {"fileType": filetype})
+            content = {
+                "extraMetadata": {},
+                "fileType": filetype,
+                "fontName": "",
+                "lastOpenedPage": 0,
+                "lineHeight": -1,
+                "margins": 100,
+                "orientation": "portrait",
+                "pageCount": 1,
+                "textScale": 1,
+                "transform": {
+                    "m11": 1,
+                    "m12": 0,
+                    "m13": 0,
+                    "m21": 0,
+                    "m22": 1,
+                    "m23": 0,
+                    "m31": 0,
+                    "m32": 0,
+                    "m33": 1
+                }
+            }
+            self.root.write_content(self.id, content)
             self.root.write_file(self.id + "." + filetype, data)
             super(NewDocument, self).save()
 
