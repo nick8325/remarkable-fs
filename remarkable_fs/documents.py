@@ -14,6 +14,7 @@ import fnmatch
 import json
 import time
 import os.path
+import os
 import itertools
 import traceback
 from tempfile import NamedTemporaryFile
@@ -347,6 +348,42 @@ class DocumentRoot(Collection):
             self.templates[name] = file
 
         return file.name
+
+
+class StupidHack():
+    def __init__(self):
+        self.sftp = os
+
+class DocumentRootDir(DocumentRoot):
+    """A collection representing the root of the reMarkable directory tree.
+
+    Creating one of these will read in all metadata and construct the directory hierarchy.
+
+    You can index into a DocumentRoot as if it was a dict. The keys are
+    filenames and the values are nodes. You can also use find_node() to look up
+    a node by id."""
+
+    def __init__(self, remarkable_directory):
+        """connection - a Connection object returned by remarkable_fs.connection.connect()."""
+        stupid = StupidHack()
+        super(DocumentRootDir, self).__init__(stupid)
+
+        if (remarkable_directory.endswith("/")):
+            self.remarkable_dir = remarkable_directory
+        else:
+            self.remarkable_dir = remarkable_directory + "/"
+
+    def read_file(self, file):
+        """Read a file from SFTP."""
+        with open(self.remarkable_dir + file, "rb") as f:
+            return f.read()
+
+    def write_file(self, file, data):
+        """Write a file to SFTP."""
+        with open(self.remarkable_dir + file, "wb") as f:
+            # f.set_pipelined()
+            f.write(data)
+
 
 class NoContents(Exception):
     """An exception that indicates that a document only has notes and no PDF or EPUB file."""
