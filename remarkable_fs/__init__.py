@@ -3,6 +3,7 @@ from remarkable_fs.documents import DocumentRoot, DocumentRootDir
 from remarkable_fs.fs import mount
 import sys
 import fuse
+import os
 
 try:
     import __builtin__
@@ -26,7 +27,9 @@ def main(argv = sys.argv):
         with connect(*argv[2:]) as conn:
             connect_to(DocumentRoot, conn, mount_point)
     else:
-        connect_to(DocumentRootDir, remarkable_mount_point, mount_point)
+        mount_point = os.path.abspath(mount_point)
+        os.chdir( remarkable_mount_point )
+        connect_to(DocumentRootDir, None, mount_point)
 
 def connect_to(connection_object, parameter, mount_point):
     root = connection_object(parameter)
