@@ -377,8 +377,7 @@ class DocumentRootDir(DocumentRoot):
     def write_file(self, file, data):
         """Write a file to SFTP."""
         with open(file, "wb") as f:
-            # f.set_pipelined()
-            f.write(data)
+            f.write(memoryview(data))
 
 
 class NoContents(Exception):
