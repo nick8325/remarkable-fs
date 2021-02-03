@@ -25,14 +25,15 @@ def main(argv = sys.argv):
     print("Connecting to reMarkable...")
     if remarkable_mount_point == None:
         with connect(*argv[2:]) as conn:
-            connect_to(DocumentRoot, conn, mount_point)
+            root = DocumentRoot(conn)
+            connect_to(root, mount_point)
     else:
         mount_point = os.path.abspath(mount_point)
         os.chdir( remarkable_mount_point )
-        connect_to(DocumentRootDir, None, mount_point)
+        root = DocumentRootDir()
+        connect_to(root, mount_point)
 
-def connect_to(connection_object, parameter, mount_point):
-    root = connection_object(parameter)
+def connect_to(root, mount_point):
     print("Now serving documents at " + mount_point)
     kwargs={}
     if fuse.system() == "Darwin":
