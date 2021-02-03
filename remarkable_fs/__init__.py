@@ -1,5 +1,5 @@
 from remarkable_fs.connection import connect
-from remarkable_fs.documents import DocumentRoot
+from remarkable_fs.documents import DocumentRoot, DocumentRootDir
 from remarkable_fs.fs import mount
 import sys
 import fuse
@@ -11,14 +11,22 @@ except:
     raw_input = input
 
 def main(argv = sys.argv):
-    if len(argv) >= 2:
+    if len(argv) == 2:
         mount_point = argv[1]
+        remarkable_mount_point = None
+    elif len(argv) >= 3:
+        mount_point = argv[1]
+        remarkable_mount_point = argv[2]
     else:
-        mount_point = raw_input("Directory: ")
+        mount_point = raw_input("User Directory: ")
+        remarkable_mount_point = raw_input("ReMarkable Directory (press enter for automatic ssh connection): ")
 
     print("Connecting to reMarkable...")
-    with connect(*argv[2:]) as conn:
-        connect_to(DocumentRoot, conn, mount_point)
+    if remarkable_mount_point == None:
+        with connect(*argv[2:]) as conn:
+            connect_to(DocumentRoot, conn, mount_point)
+    else:
+        connect_to(DocumentRootDir, remarkable_mount_point, mount_point)
 
 def connect_to(connection_object, parameter, mount_point):
     root = connection_object(parameter)
