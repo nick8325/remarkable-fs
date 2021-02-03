@@ -23,6 +23,8 @@ from lazy import lazy
 from progress.bar import Bar
 from io import BytesIO
 import remarkable_fs.rM2svg
+from collections import namedtuple
+
 
 try:
     from json import JSONDecodeError
@@ -350,10 +352,6 @@ class DocumentRoot(Collection):
         return file.name
 
 
-class StupidHack():
-    def __init__(self):
-        self.sftp = os
-
 class DocumentRootDir(DocumentRoot):
     """A collection representing the root of the reMarkable directory tree.
 
@@ -365,7 +363,10 @@ class DocumentRootDir(DocumentRoot):
 
     def __init__(self):
         """connection - a Connection object returned by remarkable_fs.connection.connect()."""
-        stupid = StupidHack()
+        FakeConnnection = namedtuple('FakeConnnection', 'sftp')
+        FakeSFTP = namedtuple('FakeSFTP', 'open listdir stat getcwd')
+        stupid = FakeConnnection(FakeSFTP(open, os.listdir, os.stat, os.getcwd))
+
         super(DocumentRootDir, self).__init__(stupid)
 
     def read_file(self, file):
