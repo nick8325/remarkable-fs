@@ -14,6 +14,7 @@ import fnmatch
 import json
 import time
 import os.path
+import os
 import itertools
 import traceback
 from tempfile import NamedTemporaryFile
@@ -22,6 +23,8 @@ from lazy import lazy
 from progress.bar import Bar
 from io import BytesIO
 import remarkable_fs.rM2svg
+from collections import namedtuple
+
 
 try:
     from json import JSONDecodeError
@@ -347,6 +350,35 @@ class DocumentRoot(Collection):
             self.templates[name] = file
 
         return file.name
+
+
+class DocumentRootDir(DocumentRoot):
+    """A collection representing the root of the reMarkable directory tree.
+
+    Creating one of these will read in all metadata and construct the directory hierarchy.
+
+    You can index into a DocumentRoot as if it was a dict. The keys are
+    filenames and the values are nodes. You can also use find_node() to look up
+    a node by id."""
+
+    def __init__(self):
+        """connection - a Connection object returned by remarkable_fs.connection.connect()."""
+        FakeConnnection = namedtuple('FakeConnnection', 'sftp')
+        FakeSFTP = namedtuple('FakeSFTP', 'open listdir stat getcwd')
+        stupid = FakeConnnection(FakeSFTP(open, os.listdir, os.stat, os.getcwd))
+
+        super(DocumentRootDir, self).__init__(stupid)
+
+    def read_file(self, file):
+        """Read a file from SFTP."""
+        with open(file, "rb") as f:
+            return f.read()
+
+    def write_file(self, file, data):
+        """Write a file to SFTP."""
+        with open(file, "wb") as f:
+            f.write(memoryview(data))
+
 
 class NoContents(Exception):
     """An exception that indicates that a document only has notes and no PDF or EPUB file."""
