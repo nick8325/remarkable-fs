@@ -39,8 +39,7 @@ def connect(addr=None):
         ssh.exec_command(on_start)
         if addr is None:
             # Only do this if we are plugged in to the device
-            ssh.exec_command("while udevadm info -p /devices/soc0/soc/2100000.aips-bus/2184000.usb/power_supply/imx_usb_charger | grep -q POWER_SUPPLY_ONLINE=1; do sleep 1; done; %s; kill $PPID" % on_finish)
-
+            ssh.exec_command("while /sbin/ip a s usb0 | grep -q 10.11.99; do sleep 1; done; %s; kill $PPID" % on_finish)
         try:
             def raise_exception(*args):
                 raise RuntimeError("Process terminated")
